@@ -1333,39 +1333,21 @@
         loadToBusLine.setAttribute('stroke-width', '3');
         svg.appendChild(loadToBusLine);
 
-        // Draw load symbol (circle with X)
-        const loadCircle = document.createElementNS(xmlns, 'circle');
-        loadCircle.setAttribute('cx', loadBranchX);
-        loadCircle.setAttribute('cy', busLineY + 95);
-        loadCircle.setAttribute('r', '15');
-        loadCircle.setAttribute('fill', 'none');
-        loadCircle.setAttribute('stroke', '#000');
-        loadCircle.setAttribute('stroke-width', '2');
-        svg.appendChild(loadCircle);
-
-        // X inside circle
-        const loadX1 = document.createElementNS(xmlns, 'line');
-        loadX1.setAttribute('x1', loadBranchX - 10);
-        loadX1.setAttribute('y1', busLineY + 85);
-        loadX1.setAttribute('x2', loadBranchX + 10);
-        loadX1.setAttribute('y2', busLineY + 105);
-        loadX1.setAttribute('stroke', '#000');
-        loadX1.setAttribute('stroke-width', '2');
-        svg.appendChild(loadX1);
-
-        const loadX2 = document.createElementNS(xmlns, 'line');
-        loadX2.setAttribute('x1', loadBranchX + 10);
-        loadX2.setAttribute('y1', busLineY + 85);
-        loadX2.setAttribute('x2', loadBranchX - 10);
-        loadX2.setAttribute('y2', busLineY + 105);
-        loadX2.setAttribute('stroke', '#000');
-        loadX2.setAttribute('stroke-width', '2');
-        svg.appendChild(loadX2);
+        // Draw load symbol (Messkonzept-Style with arrows)
+        const loadRect = document.createElementNS(xmlns, 'rect');
+        loadRect.setAttribute('x', loadBranchX - 20);
+        loadRect.setAttribute('y', busLineY + 80);
+        loadRect.setAttribute('width', '40');
+        loadRect.setAttribute('height', '20');
+        loadRect.setAttribute('fill', 'none');
+        loadRect.setAttribute('stroke', '#000');
+        loadRect.setAttribute('stroke-width', '2');
+        svg.appendChild(loadRect);
 
         // Load label
         const loadLabel = document.createElementNS(xmlns, 'text');
         loadLabel.setAttribute('x', loadBranchX + 25);
-        loadLabel.setAttribute('y', busLineY + 100);
+        loadLabel.setAttribute('y', busLineY + 95);
         loadLabel.setAttribute('text-anchor', 'start');
         loadLabel.setAttribute('font-family', 'Arial');
         loadLabel.setAttribute('font-size', '10');
@@ -1636,13 +1618,13 @@
           'Alle PV-Strings lassen sich an den Wechselrichteren abschalten (DC-Trennvorrichtung)',
           'Der Akkuspeicher und der Wechselrichter haben eine DC-Trennvorrichtung',
           'NA-Schutz nach VDE-AR-N 4105 integriert in Wechselrichtern',
-          'Alle metallischen PV-Komponenten und SPDs sind mit dem HPA verbunden'
+          'Alle metallischen PV-Komponenten und SPDs sind mit dem Hauptpotentialausgleich verbunden'
         ]
         notes.unshift(`Modulbezeichnung: ${state.moduleConfig.info}`);
         let yNotes = height - ((notes.length + 1) * 15);
         // Fußnote für Hinweise
         const footnoteTitle = document.createElementNS(xmlns, 'text');
-        footnoteTitle.setAttribute('x', '620');
+        footnoteTitle.setAttribute('x', '600');
         footnoteTitle.setAttribute('y', yNotes);
         footnoteTitle.setAttribute('font-family', 'Arial');
         footnoteTitle.setAttribute('font-size', '10');
@@ -1652,7 +1634,7 @@
 
         for (let i = 0; i < notes.length; i++) {
           const noteText = document.createElementNS(xmlns, 'text');
-          noteText.setAttribute('x', '620');
+          noteText.setAttribute('x', '600');
           noteText.setAttribute('y', yNotes + 15 * (i + 1));
           noteText.setAttribute('font-family', 'Arial');
           noteText.setAttribute('font-size', '9');
@@ -1664,11 +1646,10 @@
           'HAK: Hauptanschlusskasten',
           'LS: Leitungsschutzschalter',
           'SPD: Überspannungsschutzgerät',
-          'SLS: Selektiver Leitungsschutzschalter',
-          'HPA: Hauptpotentialausgleich'
+          'SLS: Selektiver Leitungsschutzschalter'
         ]
         let yLegend = 510;
-        let xLegend = 830;
+        let xLegend = 820;
         // Fußnote für Legende
         const legendTitle = document.createElementNS(xmlns, 'text');
         legendTitle.setAttribute('x', xLegend);
