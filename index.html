@@ -623,40 +623,33 @@
         // Meter Symbol (Zweirichtungszähler)
         const meterSymbol = document.createElementNS(xmlns, 'g');
         meterSymbol.setAttribute('id', 'meter');
-        const meterCircle = document.createElementNS(xmlns, 'circle');
-        meterCircle.setAttribute('cx', '0');
-        meterCircle.setAttribute('cy', '0');
-        meterCircle.setAttribute('r', '25');
-        meterCircle.setAttribute('fill', 'none');
-        meterCircle.setAttribute('stroke', '#000');
-        meterCircle.setAttribute('stroke-width', '2');
+        const meterRect = document.createElementNS(xmlns, 'rect');
+        meterRect.setAttribute('x', '-27');
+        meterRect.setAttribute('y', '-25');
+        meterRect.setAttribute('width', '50');
+        meterRect.setAttribute('height', '50');
+        meterRect.setAttribute('fill', 'none');
+        meterRect.setAttribute('stroke', '#000');
+        meterRect.setAttribute('stroke-width', '2');
 
         // kWh text
         const kwhText = document.createElementNS(xmlns, 'text');
         kwhText.setAttribute('x', '0');
-        kwhText.setAttribute('y', '-5');
+        kwhText.setAttribute('y', '5');
         kwhText.setAttribute('text-anchor', 'middle');
         kwhText.setAttribute('font-family', 'Arial');
-        kwhText.setAttribute('font-size', '8');
-        kwhText.textContent = 'kWh';
+        kwhText.setAttribute('font-size', '10');
+        kwhText.textContent = 'Z1';
 
-        // Bidirectional arrows - left and right pointing
-        const arrowLeft = document.createElementNS(xmlns, 'path');
-        arrowLeft.setAttribute('d', 'M -5 8 L -15 8 M -12 5 L -15 8 L -12 11');
-        arrowLeft.setAttribute('fill', 'none');
-        arrowLeft.setAttribute('stroke', '#000');
-        arrowLeft.setAttribute('stroke-width', '1.5');
+        const bidirectionalArrow = document.createElementNS(xmlns, 'path');
+        bidirectionalArrow.setAttribute('d', 'M -12 -15 L -15 -12 L -12 -9 M -15 -12 L 15 -12 M 12 -15 L 15 -12 L 12 -9');
+        bidirectionalArrow.setAttribute('fill', 'none');
+        bidirectionalArrow.setAttribute('stroke', '#000');
+        bidirectionalArrow.setAttribute('stroke-width', '1.5');
 
-        const arrowRight = document.createElementNS(xmlns, 'path');
-        arrowRight.setAttribute('d', 'M 5 8 L 15 8 M 12 5 L 15 8 L 12 11');
-        arrowRight.setAttribute('fill', 'none');
-        arrowRight.setAttribute('stroke', '#000');
-        arrowRight.setAttribute('stroke-width', '1.5');
-
-        meterSymbol.appendChild(meterCircle);
+        meterSymbol.appendChild(meterRect);
         meterSymbol.appendChild(kwhText);
-        meterSymbol.appendChild(arrowLeft);
-        meterSymbol.appendChild(arrowRight);
+        meterSymbol.appendChild(bidirectionalArrow);
         defs.appendChild(meterSymbol);
 
         // Leitungsschutzschalter (LS) Symbol
@@ -747,49 +740,7 @@
         spdSymbol.appendChild(spdLine2);
         defs.appendChild(spdSymbol);
 
-        // SPD Kombi Symbol (larger surge protector for AC grid)
-        const spdKombiSymbol = document.createElementNS(xmlns, 'g');
-        spdKombiSymbol.setAttribute('id', 'surge-protector-kombi');
 
-        // Main body (larger rectangle)
-        const spdKombiRect = document.createElementNS(xmlns, 'rect');
-        spdKombiRect.setAttribute('x', '-10');
-        spdKombiRect.setAttribute('y', '-8');
-        spdKombiRect.setAttribute('width', '20');
-        spdKombiRect.setAttribute('height', '16');
-        spdKombiRect.setAttribute('fill', 'none');
-        spdKombiRect.setAttribute('stroke', '#000');
-        spdKombiRect.setAttribute('stroke-width', '2');
-
-        // SPD Kombi characteristic symbol (zigzag line - larger)
-        const spdKombiZigzag = document.createElementNS(xmlns, 'path');
-        spdKombiZigzag.setAttribute('d', 'M -7 -4 L -4 4 L 0 -4 L 4 4 L 7 -4');
-        spdKombiZigzag.setAttribute('fill', 'none');
-        spdKombiZigzag.setAttribute('stroke', '#000');
-        spdKombiZigzag.setAttribute('stroke-width', '1.5');
-
-        // Connection points
-        const spdKombiLine1 = document.createElementNS(xmlns, 'line');
-        spdKombiLine1.setAttribute('x1', '0');
-        spdKombiLine1.setAttribute('y1', '-8');
-        spdKombiLine1.setAttribute('x2', '0');
-        spdKombiLine1.setAttribute('y2', '-12');
-        spdKombiLine1.setAttribute('stroke', '#000');
-        spdKombiLine1.setAttribute('stroke-width', '2');
-
-        const spdKombiLine2 = document.createElementNS(xmlns, 'line');
-        spdKombiLine2.setAttribute('x1', '0');
-        spdKombiLine2.setAttribute('y1', '8');
-        spdKombiLine2.setAttribute('x2', '0');
-        spdKombiLine2.setAttribute('y2', '12');
-        spdKombiLine2.setAttribute('stroke', '#000');
-        spdKombiLine2.setAttribute('stroke-width', '2');
-
-        spdKombiSymbol.appendChild(spdKombiRect);
-        spdKombiSymbol.appendChild(spdKombiZigzag);
-        spdKombiSymbol.appendChild(spdKombiLine1);
-        spdKombiSymbol.appendChild(spdKombiLine2);
-        defs.appendChild(spdKombiSymbol);
 
         // SLS (Selektiver Leitungsschutzschalter) Symbol
         const slsSymbol = document.createElementNS(xmlns, 'g');
@@ -835,136 +786,7 @@
         slsSymbol.appendChild(slsLine2);
         defs.appendChild(slsSymbol);
 
-        // Grid Connection Symbol (Power Transmission Tower)
-        const gridSymbol = document.createElementNS(xmlns, 'g');
-        gridSymbol.setAttribute('id', 'grid');
 
-        // Main tower structure (vertical mast)
-        const mainMast = document.createElementNS(xmlns, 'line');
-        mainMast.setAttribute('x1', '0');
-        mainMast.setAttribute('y1', '25');
-        mainMast.setAttribute('x2', '0');
-        mainMast.setAttribute('y2', '-30');
-        mainMast.setAttribute('stroke', '#000');
-        mainMast.setAttribute('stroke-width', '3');
-
-        // Tower base (wider at bottom)
-        const baseLeft = document.createElementNS(xmlns, 'line');
-        baseLeft.setAttribute('x1', '-8');
-        baseLeft.setAttribute('y1', '25');
-        baseLeft.setAttribute('x2', '0');
-        baseLeft.setAttribute('y2', '10');
-        baseLeft.setAttribute('stroke', '#000');
-        baseLeft.setAttribute('stroke-width', '2');
-
-        const baseRight = document.createElementNS(xmlns, 'line');
-        baseRight.setAttribute('x1', '8');
-        baseRight.setAttribute('y1', '25');
-        baseRight.setAttribute('x2', '0');
-        baseRight.setAttribute('y2', '10');
-        baseRight.setAttribute('stroke', '#000');
-        baseRight.setAttribute('stroke-width', '2');
-
-        // Cross arms (horizontal beams for power lines)
-        const topArm = document.createElementNS(xmlns, 'line');
-        topArm.setAttribute('x1', '-20');
-        topArm.setAttribute('y1', '-25');
-        topArm.setAttribute('x2', '20');
-        topArm.setAttribute('y2', '-25');
-        topArm.setAttribute('stroke', '#000');
-        topArm.setAttribute('stroke-width', '2');
-
-        const middleArm = document.createElementNS(xmlns, 'line');
-        middleArm.setAttribute('x1', '-16');
-        middleArm.setAttribute('y1', '-10');
-        middleArm.setAttribute('x2', '16');
-        middleArm.setAttribute('y2', '-10');
-        middleArm.setAttribute('stroke', '#000');
-        middleArm.setAttribute('stroke-width', '2');
-
-        const lowerArm = document.createElementNS(xmlns, 'line');
-        lowerArm.setAttribute('x1', '-12');
-        lowerArm.setAttribute('y1', '5');
-        lowerArm.setAttribute('x2', '12');
-        lowerArm.setAttribute('y2', '5');
-        lowerArm.setAttribute('stroke', '#000');
-        lowerArm.setAttribute('stroke-width', '2');
-
-        // Support braces for top arm
-        const braceLeft = document.createElementNS(xmlns, 'line');
-        braceLeft.setAttribute('x1', '-20');
-        braceLeft.setAttribute('y1', '-25');
-        braceLeft.setAttribute('x2', '0');
-        braceLeft.setAttribute('y2', '-15');
-        braceLeft.setAttribute('stroke', '#000');
-        braceLeft.setAttribute('stroke-width', '1');
-
-        const braceRight = document.createElementNS(xmlns, 'line');
-        braceRight.setAttribute('x1', '20');
-        braceRight.setAttribute('y1', '-25');
-        braceRight.setAttribute('x2', '0');
-        braceRight.setAttribute('y2', '-15');
-        braceRight.setAttribute('stroke', '#000');
-        braceRight.setAttribute('stroke-width', '1');
-
-        // Power line insulators (small circles at arm ends)
-        const insulator1 = document.createElementNS(xmlns, 'circle');
-        insulator1.setAttribute('cx', '-20');
-        insulator1.setAttribute('cy', '-25');
-        insulator1.setAttribute('r', '2');
-        insulator1.setAttribute('fill', 'none');
-        insulator1.setAttribute('stroke', '#000');
-        insulator1.setAttribute('stroke-width', '1');
-
-        const insulator2 = document.createElementNS(xmlns, 'circle');
-        insulator2.setAttribute('cx', '0');
-        insulator2.setAttribute('cy', '-25');
-        insulator2.setAttribute('r', '2');
-        insulator2.setAttribute('fill', 'none');
-        insulator2.setAttribute('stroke', '#000');
-        insulator2.setAttribute('stroke-width', '1');
-
-        const insulator3 = document.createElementNS(xmlns, 'circle');
-        insulator3.setAttribute('cx', '20');
-        insulator3.setAttribute('cy', '-25');
-        insulator3.setAttribute('r', '2');
-        insulator3.setAttribute('fill', 'none');
-        insulator3.setAttribute('stroke', '#000');
-        insulator3.setAttribute('stroke-width', '1');
-
-        // Power lines (dashed lines representing cables)
-        const powerLine1 = document.createElementNS(xmlns, 'line');
-        powerLine1.setAttribute('x1', '-25');
-        powerLine1.setAttribute('y1', '-23');
-        powerLine1.setAttribute('x2', '-15');
-        powerLine1.setAttribute('y2', '-23');
-        powerLine1.setAttribute('stroke', '#000');
-        powerLine1.setAttribute('stroke-width', '1');
-        powerLine1.setAttribute('stroke-dasharray', '2,2');
-
-        const powerLine2 = document.createElementNS(xmlns, 'line');
-        powerLine2.setAttribute('x1', '15');
-        powerLine2.setAttribute('y1', '-23');
-        powerLine2.setAttribute('x2', '25');
-        powerLine2.setAttribute('y2', '-23');
-        powerLine2.setAttribute('stroke', '#000');
-        powerLine2.setAttribute('stroke-width', '1');
-        powerLine2.setAttribute('stroke-dasharray', '2,2');
-
-        gridSymbol.appendChild(mainMast);
-        gridSymbol.appendChild(baseLeft);
-        gridSymbol.appendChild(baseRight);
-        gridSymbol.appendChild(topArm);
-        gridSymbol.appendChild(middleArm);
-        gridSymbol.appendChild(lowerArm);
-        gridSymbol.appendChild(braceLeft);
-        gridSymbol.appendChild(braceRight);
-        gridSymbol.appendChild(insulator1);
-        gridSymbol.appendChild(insulator2);
-        gridSymbol.appendChild(insulator3);
-        gridSymbol.appendChild(powerLine1);
-        gridSymbol.appendChild(powerLine2);
-        defs.appendChild(gridSymbol);
 
         svg.appendChild(defs);
 
@@ -976,8 +798,7 @@
         const meterX = 660; // Zweirichtungszähler position
         const spdKombiX = 740; // SPD Kombi after meter
         const slsX = 810; // SLS position
-        const hakX = 860; // HAK position (moved right, directly before grid)
-        const gridX = 940; // Grid connection (moved further right)
+        const hakX = 860; // HAK position (Ende der Schaltung)
         const batY = 500;
 
 
@@ -1272,7 +1093,6 @@
         // Calculate dynamic positions based on number of inverters
         const busLineY = Math.max(startY + (state.inverters.length * verticalSpacing), startY + 120); // Position below all inverters
         const meterY = busLineY; // Meter at same height as bus line
-        const gridY = busLineY; // Grid connection at same height as bus line
 
         // Draw main AC bus line (Sammelschiene) to meter - parallel connection
         const busStartX = invX + 115; // Start even further to the right to accommodate moved LS
@@ -1315,7 +1135,7 @@
           cableLabel.setAttribute('font-family', 'Arial');
           cableLabel.setAttribute('font-size', '8');
           cableLabel.setAttribute('fill', '#222');
-          cableLabel.textContent = `${cableSize}mm²`;
+          cableLabel.textContent = '' // `${cableSize}mm²`;
           svg.appendChild(cableLabel);
 
           // Circuit breaker symbol
@@ -1634,36 +1454,9 @@
         spdType2Label.textContent = 'SPD Typ2';
         svg.appendChild(spdType2Label);
 
-        // Draw grid connection
-        const gridGroup = document.createElementNS(xmlns, 'use');
-        gridGroup.setAttribute('href', '#grid');
-        gridGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#grid');
-        gridGroup.setAttribute('transform', `translate(${gridX}, ${gridY})`);
-        svg.appendChild(gridGroup);
-
-        const gridLabel = document.createElementNS(xmlns, 'text');
-        gridLabel.setAttribute('x', gridX);
-        gridLabel.setAttribute('y', gridY + 40);
-        gridLabel.setAttribute('text-anchor', 'middle');
-        gridLabel.setAttribute('font-family', 'Arial');
-        gridLabel.setAttribute('font-size', '10');
-        gridLabel.setAttribute('font-weight', 'bold');
-        gridLabel.textContent = 'Netzanschluss';
-        svg.appendChild(gridLabel);
-
-        const gridInfo = document.createElementNS(xmlns, 'text');
-        gridInfo.setAttribute('x', gridX);
-        gridInfo.setAttribute('y', gridY + 55);
-        gridInfo.setAttribute('text-anchor', 'middle');
-        gridInfo.setAttribute('font-family', 'Arial');
-        gridInfo.setAttribute('font-size', '8');
-        gridInfo.setAttribute('fill', '#222');
-        gridInfo.textContent = ''; // 'TN-C-S | 3~400/230V'; // feste Netzform erstmal
-        svg.appendChild(gridInfo);
-
         // Connection from SPD Kombi to SLS
         const spdKombiToSlsLine = document.createElementNS(xmlns, 'line');
-        spdKombiToSlsLine.setAttribute('x1', spdKombiX + 12);
+        spdKombiToSlsLine.setAttribute('x1', spdKombiX - 12);
         spdKombiToSlsLine.setAttribute('y1', meterY);
         spdKombiToSlsLine.setAttribute('x2', slsX - 12);
         spdKombiToSlsLine.setAttribute('y2', meterY);
@@ -1708,15 +1501,7 @@
         slsToHakLine.setAttribute('stroke-width', '3');
         svg.appendChild(slsToHakLine);
 
-        // Connection from HAK to grid
-        const hakToGridLine = document.createElementNS(xmlns, 'line');
-        hakToGridLine.setAttribute('x1', hakX + 15);
-        hakToGridLine.setAttribute('y1', meterY);
-        hakToGridLine.setAttribute('x2', gridX - 25);
-        hakToGridLine.setAttribute('y2', gridY);
-        hakToGridLine.setAttribute('stroke', '#000');
-        hakToGridLine.setAttribute('stroke-width', '3');
-        svg.appendChild(hakToGridLine);
+
 
         // Connection from meter to SPD Kombi
         const meterToSpdKombiLine = document.createElementNS(xmlns, 'line');
@@ -1777,17 +1562,70 @@
         hakLabel.textContent = 'HAK';
         svg.appendChild(hakLabel);
 
-        // Add SPD Kombi symbol
-        const spdKombiGroup = document.createElementNS(xmlns, 'use');
-        spdKombiGroup.setAttribute('href', '#surge-protector-kombi');
-        spdKombiGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#surge-protector-kombi');
-        spdKombiGroup.setAttribute('transform', `translate(${spdKombiX}, ${meterY}) rotate(90)`);
-        svg.appendChild(spdKombiGroup);
+        // SPD Kombi - draw inline like SPD Type 2
+        // Vertical line from busbar down
+        const spdKombiToBusLine = document.createElementNS(xmlns, 'line');
+        spdKombiToBusLine.setAttribute('x1', spdKombiX);
+        spdKombiToBusLine.setAttribute('y1', meterY);
+        spdKombiToBusLine.setAttribute('x2', spdKombiX);
+        spdKombiToBusLine.setAttribute('y2', meterY + 40);
+        spdKombiToBusLine.setAttribute('stroke', '#000');
+        spdKombiToBusLine.setAttribute('stroke-width', '2');
+        svg.appendChild(spdKombiToBusLine);
+
+        // SPD Kombi rectangle box
+        const spdKombiBox = document.createElementNS(xmlns, 'rect');
+        spdKombiBox.setAttribute('x', spdKombiX - 12);
+        spdKombiBox.setAttribute('y', meterY + 40);
+        spdKombiBox.setAttribute('width', '24');
+        spdKombiBox.setAttribute('height', '30');
+        spdKombiBox.setAttribute('fill', 'none');
+        spdKombiBox.setAttribute('stroke', '#000');
+        spdKombiBox.setAttribute('stroke-width', '2');
+        svg.appendChild(spdKombiBox);
+
+        // SPD Kombi internal arrow symbol (up)
+        const spdKombiArrow1 = document.createElementNS(xmlns, 'path');
+        spdKombiArrow1.setAttribute('d', `M ${spdKombiX - 6} ${meterY + 50} L ${spdKombiX - 3} ${meterY + 47} L ${spdKombiX} ${meterY + 50}`);
+        spdKombiArrow1.setAttribute('fill', 'none');
+        spdKombiArrow1.setAttribute('stroke', '#000');
+        spdKombiArrow1.setAttribute('stroke-width', '1');
+        svg.appendChild(spdKombiArrow1);
+
+        // SPD Kombi internal arrow symbol (down)
+        const spdKombiArrow2 = document.createElementNS(xmlns, 'path');
+        spdKombiArrow2.setAttribute('d', `M ${spdKombiX} ${meterY + 60} L ${spdKombiX + 3} ${meterY + 63} L ${spdKombiX + 6} ${meterY + 60}`);
+        spdKombiArrow2.setAttribute('fill', 'none');
+        spdKombiArrow2.setAttribute('stroke', '#000');
+        spdKombiArrow2.setAttribute('stroke-width', '1');
+        svg.appendChild(spdKombiArrow2);
+
+        // SPD Kombi ground connection line
+        const spdKombiGroundLine = document.createElementNS(xmlns, 'line');
+        spdKombiGroundLine.setAttribute('x1', spdKombiX);
+        spdKombiGroundLine.setAttribute('y1', meterY + 70);
+        spdKombiGroundLine.setAttribute('x2', spdKombiX);
+        spdKombiGroundLine.setAttribute('y2', meterY + 85);
+        spdKombiGroundLine.setAttribute('stroke', '#000');
+        spdKombiGroundLine.setAttribute('stroke-width', '2');
+        svg.appendChild(spdKombiGroundLine);
+
+        // SPD Kombi ground symbol (three horizontal lines)
+        for (let i = 0; i < 3; i++) {
+          const groundLine = document.createElementNS(xmlns, 'line');
+          groundLine.setAttribute('x1', spdKombiX - (6 - i * 2));
+          groundLine.setAttribute('y1', meterY + 85 + i * 3);
+          groundLine.setAttribute('x2', spdKombiX + (6 - i * 2));
+          groundLine.setAttribute('y2', meterY + 85 + i * 3);
+          groundLine.setAttribute('stroke', '#000');
+          groundLine.setAttribute('stroke-width', '1');
+          svg.appendChild(groundLine);
+        }
 
         const spdKombiLabel = document.createElementNS(xmlns, 'text');
-        spdKombiLabel.setAttribute('x', spdKombiX);
-        spdKombiLabel.setAttribute('y', meterY - 20);
-        spdKombiLabel.setAttribute('text-anchor', 'middle');
+        spdKombiLabel.setAttribute('x', spdKombiX + 18);
+        spdKombiLabel.setAttribute('y', meterY + 55);
+        spdKombiLabel.setAttribute('text-anchor', 'start');
         spdKombiLabel.setAttribute('font-family', 'Arial');
         spdKombiLabel.setAttribute('font-size', '9');
         spdKombiLabel.setAttribute('font-weight', 'bold');
@@ -1797,7 +1635,6 @@
         notes = [
           'Alle PV-Strings lassen sich an den Wechselrichteren abschalten (DC-Trennvorrichtung)',
           'Der Akkuspeicher und der Wechselrichter haben eine DC-Trennvorrichtung',
-          'Solarkabel H1Z2Z2-K 6 mm²',
           'NA-Schutz nach VDE-AR-N 4105 integriert in Wechselrichtern',
           'Alle metallischen PV-Komponenten und SPDs sind mit dem HPA verbunden'
         ]
