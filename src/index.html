@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PV Schaltplan Generator</title>
+  <style>
+    :root{--accent:#1f6feb;--muted:#666}
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;height:100vh;display:flex;gap:12px}
+    header{padding:10px 14px;background:#f4f6fb;border-bottom:1px solid #e6e9f2}
+    .sidebar{width:380px;min-width:360px;padding:12px;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;border-right:1px solid #eceef6}
+    .main{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box}
+    h2{margin:6px 0}
+    label{display:block;margin-top:8px;font-size:13px}
+    input,select{width:100%;max-width:100%;padding:8px;margin-top:4px;border:1px solid #d8dbe9;border-radius:6px;box-sizing:border-box}
+    button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;max-width:100%;box-sizing:border-box;min-height:36px;font-size:13px}
+    .danger{background:#f87171;color:#fff}
+    .btn-small{padding:4px 8px;min-height:auto;font-size:11px}
+    .muted{color:var(--muted);font-size:13px}
+    .list{margin-top:8px;border-top:1px dashed #e3e6f2;padding-top:8px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{padding:6px;text-align:left;border-bottom:1px solid #f0f2fa;font-size:13px;word-wrap:break-word;overflow:hidden}
+    .controls{display:flex;gap:8px;align-items:center}
+    .preview{flex:1;border:1px solid #e6e9f2;border-radius:8px;padding:8px;background:#fff;overflow:auto}
+    .svg-container{width:100%;height:700px;display:flex;justify-content:center;align-items:flex-start}
+    .small{font-size:12px}
+    .note{background:#fff8e6;padding:8px;border-radius:6px;font-size:13px}
+    footer{padding:8px;border-top:1px solid #eceef6;margin-top:auto}
+    .row{display:flex;gap:8px}
+    .half{flex:1}
+    input[type=file]{padding:6px}
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Projekt</h2>
+    <label>Projektname
+      <input id="projectName" placeholder="Mein PV-Projekt" />
+    </label>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <button id="newProject" style="flex: 1">Neu</button>
+      <button id="saveProject" style="flex: 1">Projekt speichern</button>
+      <button id="openProject" style="flex: 1">Projekt öffnen</button>
+      <input id="loadFile" type="file" accept="application/json" style="display:none" />
+    </div>
+
+    <hr />
+    <h2>PV-Module Konfiguration</h2>
+    <div>
+      <label>Hersteller + Typ
+        <input id="moduleInfo" placeholder="z.B. SunPower Maxeon 3" />
+      </label>
+      <label>Modul Nennleistung (W)
+        <input id="moduleWattage" type="number" min="1" value="420" />
+      </label>
+    </div>
+
+    <hr />
+    <h2>Solarflächen</h2>
+    <div>
+      <label>Name
+        <input id="saName" placeholder="Dach Süd" />
+      </label>
+      <label>Anzahl Module
+        <input id="saCount" type="number" min="1" value="10" />
+      </label>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        <button id="addSA">Solarfläche hinzufügen</button>
+      </div>
+    </div>
+    <div class="list">
+      <table id="saTable"><thead><tr><th>ID</th><th>Name</th><th>Module</th><th>Leistung</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+    <hr />
+    <h2>Wechselrichter</h2>
+    <label>Name
+      <input id="invName" placeholder="SMA Sunny Tripower" />
+    </label>
+    <label>Phasen
+      <select id="invPhases"><option value="3-ph">3-ph</option><option value="1-ph">1-ph</option></select>
+    </label>
+    <label>AC-Nennleistung (W)
+      <input id="invAcW" type="number" min="1" value="5000" />
+    </label>
+    <label>Solarflächen zuordnen (STRG/SHIFT für mehrere)
+      <select id="invAssign" multiple style="height:120px"></select>
+    </label>
+    <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
+      <button id="addInv">Wechselrichter hinzufügen</button>
+      <button id="clearInv" class="danger">Alle Wechselrichter löschen</button>
+    </div>
+    <div class="list">
+      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>Flächen</th></tr></thead><tbody></tbody></table>
+    </div>
+    <hr />
+    <h2>Batterie</h2>
+    <label>Name
+      <input id="batName" placeholder="BatteryX" />
+    </label>
+    <label>Kapazität (kWh)
+      <input id="batKwh" type="number" min="0.1" step="0.1" value="10" />
+    </label>
+    <label>Max. Leistung (kW)
+      <input id="batPowerKw" type="number" min="0" step="0.1" value="5" />
+    </label>
+    <label>Zugeordneter Wechselrichter
+      <select id="batAssign"><option value="">-- keiner --</option></select>
+    </label>
+    <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
+      <button id="addBat" style="flex: 1">Batterie aktualisieren</button>
+      <button id="removeBat" class="danger" style="flex: 1">Batterie löschen</button>
+    </div>
+
+  </div>
+
+  <div class="main">
+    <header style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div id="metaBox" class="small muted" style="margin-top:4px;">Keine Metadaten</div>
+      </div>
+      <div class="controls">
+        <button id="gen">Schaltplan generieren</button>
+        <button id="exportPdf">Export PDF</button>
+      </div>
+    </header>
+
+    <div class="row">
+      <div class="preview">
+        <h3>Vorschau</h3>
+        <div class="svg-container" id="svgWrap">Keine Vorschau. Bitte „Schaltplan generieren“ klicken.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- libs via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/svg2pdf.js@2.2.1/dist/svg2pdf.umd.min.js"></script>
+
+  <script>
+    // Simple client-side app
+    (function(){
+      // state
+      const state = {
+        projectName: 'Mein PV-Projekt',
+        moduleConfig: {
+          info: '', // Hersteller + Typ
+          wattage: 420 // Nennleistung in W
+        },
+        solarAreas: [],
+        inverters: [],
+        battery: null,
+        meter: { id: 'Z1', name: 'Zweirichtungszähler' }
+      };
+
+      // helpers
+      const $ = id => document.getElementById(id);
+      
+      // ID generator with dynamic starting point
+      let uidCounter = 1;
+      const uid = () => (uidCounter++).toString(36);
+      
+      // Function to update UID counter based on existing IDs
+      function updateUidCounter() {
+        let maxId = 0;
+        
+        // Check solar areas
+        state.solarAreas.forEach(sa => {
+          const match = sa.id.match(/^SA(.+)$/);
+          if (match) {
+            const idNum = parseInt(match[1], 36);
+            if (!isNaN(idNum) && idNum >= maxId) {
+              maxId = idNum + 1;
+            }
+          }
+        });
+        
+        // Check inverters
+        state.inverters.forEach(inv => {
+          const match = inv.id.match(/^INV(.+)$/);
+          if (match) {
+            const idNum = parseInt(match[1], 36);
+            if (!isNaN(idNum) && idNum >= maxId) {
+              maxId = idNum + 1;
+            }
+          }
+        });
+        
+        uidCounter = Math.max(uidCounter, maxId);
+      }
+
+      // DOM elems
+      const saTable = $('saTable').querySelector('tbody');
+      const invTable = $('invTable').querySelector('tbody');
+      const invAssign = $('invAssign');
+      const batAssign = $('batAssign');
+
+      function renderLists(){
+        // solarareas
+        saTable.innerHTML=''; invAssign.innerHTML='';
+        state.solarAreas.forEach(sa=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${sa.id}</td><td>${sa.name}</td><td>${sa.modules}</td><td>${(sa.modules*state.moduleConfig.wattage)/1000} kW</td><td><button class="danger btn-small" data-id="${sa.id}">Entf</button></td>`;
+          saTable.appendChild(tr);
+          invAssign.appendChild(new Option(`${sa.name} (${sa.id})`, sa.id));
+        });
+        // invs
+        invTable.innerHTML=''; batAssign.innerHTML=''; batAssign.appendChild(new Option('-- keiner --',''));
+        state.inverters.forEach(inv=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
+          invTable.appendChild(tr);
+          batAssign.appendChild(new Option(`${inv.name} (${inv.id})`, inv.id));
+        });
+
+        // battery
+        if(state.battery){
+          $('batName').value = state.battery.name;
+          $('batKwh').value = state.battery.kwh;
+          $('batPowerKw').value = state.battery.power_kw ?? '';
+          $('batAssign').value = state.battery.assignedInvId || '';
+        }
+
+        // attach delete handlers
+        saTable.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', e=>{
+          const id = btn.getAttribute('data-id'); state.solarAreas = state.solarAreas.filter(s=>s.id!==id);
+          // remove references in inverters
+          state.inverters.forEach(inv=>{ inv.assignedSolarAreaIds = inv.assignedSolarAreaIds.filter(x=>x!==id); });
+          renderLists();
+        }));
+
+        updateMetaBox();
+      }
+
+      function updateMetaBox(){
+        $('metaBox').innerHTML = `<strong>${state.projectName}</strong><br>PV-Flächen: ${state.solarAreas.length} | Wechselrichter: ${state.inverters.length} | Batterie: ${state.battery? 'ja':'nein'}`;
+      }
+
+      // add solar area
+      $('addSA').addEventListener('click', ()=>{
+        const name = $('saName').value.trim();
+        const modules = parseInt($('saCount').value,10);
+        if(!name){return alert('Name ist Pflicht');}
+        if(!modules || modules<1) return alert('Anzahl Module muss >=1 sein');
+        if(!state.moduleConfig.wattage || state.moduleConfig.wattage<=0) return alert('Modul Nennleistung muss in der PV-Module Konfiguration eingetragen werden');
+        const id = 'SA'+uid();
+        state.solarAreas.push({id,name,modules});
+        $('saName').value=''; $('saCount').value=10;
+        renderLists();
+      });
+
+      // add inverter
+      $('addInv').addEventListener('click', ()=>{
+        const name = $('invName').value.trim()||'WR';
+        const phases = $('invPhases').value;
+        const ac_power_w = parseFloat($('invAcW').value)||0;
+        const assigned = Array.from($('invAssign').selectedOptions).map(o=>o.value);
+        const id = 'INV'+uid();
+        state.inverters.push({id,name,phases,ac_power_w,assignedSolarAreaIds:assigned,assignedBatteryId:null});
+        $('invName').value=''; $('invAcW').value=5000; $('invAssign').selectedIndex=-1;
+        renderLists();
+      });
+
+      $('clearInv').addEventListener('click', ()=>{ if(confirm('Alle Wechselrichter löschen?')){ state.inverters=[]; renderLists(); }});
+
+      // battery
+      $('addBat').addEventListener('click', ()=>{
+        const name = $('batName').value.trim()||'BAT';
+        const kwh = parseFloat($('batKwh').value)||0;
+        const power_kw = parseFloat($('batPowerKw').value)||0;
+        const assignedInvId = $('batAssign').value||null;
+        if(!state.battery) state.battery = { id:'BAT1', name, kwh, power_kw, assignedInvId };
+        else { state.battery.name = name; state.battery.kwh = kwh; state.battery.power_kw = power_kw; state.battery.assignedInvId = assignedInvId; }
+        renderLists();
+      });
+      $('removeBat').addEventListener('click', ()=>{ state.battery=null; renderLists(); });
+
+      // project controls
+      $('newProject').addEventListener('click', ()=>{
+        if(!confirm('Neues Projekt erstellen? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
+        state.projectName = 'Mein PV-Projekt'; 
+        state.moduleConfig = { info: '', wattage: 420 };
+        state.solarAreas=[]; state.inverters=[]; state.battery=null; 
+        uidCounter = 1; // Reset counter for new project
+        renderLists(); 
+        $('projectName').value='';
+        $('moduleInfo').value='';
+        $('moduleWattage').value=420;
+        $('svgWrap').innerHTML='Keine Vorschau. Bitte „Schaltplan generieren“ klicken.';
+
+      });
+
+      $('projectName').addEventListener('input',(e)=>{ state.projectName = e.target.value; updateMetaBox(); });
+
+      // module config listeners
+      $('moduleInfo').addEventListener('input',(e)=>{ state.moduleConfig.info = e.target.value; renderLists(); });
+      $('moduleWattage').addEventListener('input',(e)=>{ 
+        state.moduleConfig.wattage = parseFloat(e.target.value) || 420; 
+        renderLists(); 
+      });
+
+      // save/load
+      $('saveProject').addEventListener('click', ()=>{
+        const blob = new Blob([JSON.stringify({projectName:state.projectName,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery},null,2)],{type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
+      });
+
+      $('openProject').addEventListener('click', ()=>{
+        $('loadFile').click();
+      });
+
+      $('loadFile').addEventListener('change', async (e)=>{
+        const f = e.target.files[0]; if(!f) return; const txt = await f.text();
+        try{ 
+          const obj = JSON.parse(txt); 
+          state.projectName = obj.projectName||state.projectName; 
+          state.moduleConfig = obj.moduleConfig||{ info: '', wattage: 420 };
+          state.solarAreas = obj.solarAreas||[]; 
+          state.inverters = obj.inverters||[]; 
+          state.battery = obj.battery||null; 
+          $('projectName').value = state.projectName; 
+          $('moduleInfo').value = state.moduleConfig.info;
+          $('moduleWattage').value = state.moduleConfig.wattage;
+          updateUidCounter(); // Update counter based on loaded IDs
+          renderLists(); 
+        }catch(err){ alert('Fehler beim Laden: '+err.message); }
+      });
+
+      // Professional electrical schematic generation
+      function buildProfessionalSVG(){
+        const width = 1000;
+        const height = 700;
+        const xmlns = 'http://www.w3.org/2000/svg';
+        
+        // Create main SVG container
+        const svg = document.createElementNS(xmlns, 'svg');
+        svg.setAttribute('width', width);
+        svg.setAttribute('height', height);
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        // Für bessere <use>-Kompatibilität
+        svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+        svg.setAttribute('style', 'background: white; border: 1px solid #000;');
+
+        // Define symbols and patterns
+        const defs = document.createElementNS(xmlns, 'defs');
+        
+        // PV Module Symbol
+        const pvSymbol = document.createElementNS(xmlns, 'g');
+        pvSymbol.setAttribute('id', 'pv-module');
+        const pvRect = document.createElementNS(xmlns, 'rect');
+        pvRect.setAttribute('x', '-25');
+        pvRect.setAttribute('y', '-15');
+        pvRect.setAttribute('width', '50');
+        pvRect.setAttribute('height', '30');
+        pvRect.setAttribute('fill', 'none');
+        pvRect.setAttribute('stroke', '#000');
+        pvRect.setAttribute('stroke-width', '2');
+        
+        // Solar cell grid pattern
+        for(let i = 0; i < 3; i++) {
+          for(let j = 0; j < 2; j++) {
+            const cell = document.createElementNS(xmlns, 'rect');
+            cell.setAttribute('x', -20 + i * 13);
+            cell.setAttribute('y', -10 + j * 10);
+            cell.setAttribute('width', '10');
+            cell.setAttribute('height', '8');
+            cell.setAttribute('fill', 'none');
+            cell.setAttribute('stroke', '#000');
+            cell.setAttribute('stroke-width', '0.5');
+            pvSymbol.appendChild(cell);
+          }
+        }
+        
+        pvSymbol.appendChild(pvRect);
+        defs.appendChild(pvSymbol);
+
+        // Inverter Symbol (Wechselrichter)
+        const invSymbol = document.createElementNS(xmlns, 'g');
+        invSymbol.setAttribute('id', 'inverter');
+        const invRect = document.createElementNS(xmlns, 'rect');
+        invRect.setAttribute('x', '-30');
+        invRect.setAttribute('y', '-25');
+        invRect.setAttribute('width', '60');
+        invRect.setAttribute('height', '50');
+        invRect.setAttribute('fill', 'none');
+        invRect.setAttribute('stroke', '#000');
+        invRect.setAttribute('stroke-width', '2');
+        
+        // DC input symbol (=)
+        const dcLine1 = document.createElementNS(xmlns, 'line');
+        dcLine1.setAttribute('x1', '-20');
+        dcLine1.setAttribute('y1', '-5');
+        dcLine1.setAttribute('x2', '-10');
+        dcLine1.setAttribute('y2', '-5');
+        dcLine1.setAttribute('stroke', '#000');
+        dcLine1.setAttribute('stroke-width', '2');
+        
+        const dcLine2 = document.createElementNS(xmlns, 'line');
+        dcLine2.setAttribute('x1', '-20');
+        dcLine2.setAttribute('y1', '5');
+        dcLine2.setAttribute('x2', '-10');
+        dcLine2.setAttribute('y2', '5');
+        dcLine2.setAttribute('stroke', '#000');
+        dcLine2.setAttribute('stroke-width', '2');
+        
+        // AC output symbol (~)
+        const acPath = document.createElementNS(xmlns, 'path');
+        acPath.setAttribute('d', 'M 10 -5 Q 15 -10 20 -5 Q 25 0 30 -5');
+        acPath.setAttribute('fill', 'none');
+        acPath.setAttribute('stroke', '#000');
+        acPath.setAttribute('stroke-width', '2');
+        
+        invSymbol.appendChild(invRect);
+        invSymbol.appendChild(dcLine1);
+        invSymbol.appendChild(dcLine2);
+        invSymbol.appendChild(acPath);
+        defs.appendChild(invSymbol);
+
+        // Battery Symbol
+        const batSymbol = document.createElementNS(xmlns, 'g');
+        batSymbol.setAttribute('id', 'battery');
+        
+        // Battery cells
+        const longLine1 = document.createElementNS(xmlns, 'line');
+        longLine1.setAttribute('x1', '-15');
+        longLine1.setAttribute('y1', '-20');
+        longLine1.setAttribute('x2', '-15');
+        longLine1.setAttribute('y2', '20');
+        longLine1.setAttribute('stroke', '#000');
+        longLine1.setAttribute('stroke-width', '3');
+        
+        const shortLine1 = document.createElementNS(xmlns, 'line');
+        shortLine1.setAttribute('x1', '-10');
+        shortLine1.setAttribute('y1', '-15');
+        shortLine1.setAttribute('x2', '-10');
+        shortLine1.setAttribute('y2', '15');
+        shortLine1.setAttribute('stroke', '#000');
+        shortLine1.setAttribute('stroke-width', '2');
+        
+        const longLine2 = document.createElementNS(xmlns, 'line');
+        longLine2.setAttribute('x1', '-5');
+        longLine2.setAttribute('y1', '-20');
+        longLine2.setAttribute('x2', '-5');
+        longLine2.setAttribute('y2', '20');
+        longLine2.setAttribute('stroke', '#000');
+        longLine2.setAttribute('stroke-width', '3');
+        
+        const shortLine2 = document.createElementNS(xmlns, 'line');
+        shortLine2.setAttribute('x1', '0');
+        shortLine2.setAttribute('y1', '-15');
+        shortLine2.setAttribute('x2', '0');
+        shortLine2.setAttribute('y2', '15');
+        shortLine2.setAttribute('stroke', '#000');
+        shortLine2.setAttribute('stroke-width', '2');
+        
+        batSymbol.appendChild(longLine1);
+        batSymbol.appendChild(shortLine1);
+        batSymbol.appendChild(longLine2);
+        batSymbol.appendChild(shortLine2);
+        defs.appendChild(batSymbol);
+
+        // Meter Symbol (Zweirichtungszähler)
+        const meterSymbol = document.createElementNS(xmlns, 'g');
+        meterSymbol.setAttribute('id', 'meter');
+        const meterCircle = document.createElementNS(xmlns, 'circle');
+        meterCircle.setAttribute('cx', '0');
+        meterCircle.setAttribute('cy', '0');
+        meterCircle.setAttribute('r', '25');
+        meterCircle.setAttribute('fill', 'none');
+        meterCircle.setAttribute('stroke', '#000');
+        meterCircle.setAttribute('stroke-width', '2');
+        
+        // kWh text
+        const kwhText = document.createElementNS(xmlns, 'text');
+        kwhText.setAttribute('x', '0');
+        kwhText.setAttribute('y', '-5');
+        kwhText.setAttribute('text-anchor', 'middle');
+        kwhText.setAttribute('font-family', 'Arial');
+        kwhText.setAttribute('font-size', '8');
+        kwhText.textContent = 'kWh';
+        
+        // Bidirectional arrows - left and right pointing
+        const arrowLeft = document.createElementNS(xmlns, 'path');
+        arrowLeft.setAttribute('d', 'M -5 8 L -15 8 M -12 5 L -15 8 L -12 11');
+        arrowLeft.setAttribute('fill', 'none');
+        arrowLeft.setAttribute('stroke', '#000');
+        arrowLeft.setAttribute('stroke-width', '1.5');
+        
+        const arrowRight = document.createElementNS(xmlns, 'path');
+        arrowRight.setAttribute('d', 'M 5 8 L 15 8 M 12 5 L 15 8 L 12 11');
+        arrowRight.setAttribute('fill', 'none');
+        arrowRight.setAttribute('stroke', '#000');
+        arrowRight.setAttribute('stroke-width', '1.5');
+        
+        meterSymbol.appendChild(meterCircle);
+        meterSymbol.appendChild(kwhText);
+        meterSymbol.appendChild(arrowLeft);
+        meterSymbol.appendChild(arrowRight);
+        defs.appendChild(meterSymbol);
+
+        // Grid Connection Symbol
+        const gridSymbol = document.createElementNS(xmlns, 'g');
+        gridSymbol.setAttribute('id', 'grid');
+        
+        // Power line tower simplified
+        const tower = document.createElementNS(xmlns, 'path');
+        tower.setAttribute('d', 'M -20 20 L -20 -15 L -10 -25 L 0 -15 L 10 -25 L 20 -15 L 20 20');
+        tower.setAttribute('fill', 'none');
+        tower.setAttribute('stroke', '#000');
+        tower.setAttribute('stroke-width', '2');
+        
+        // Cross bars
+        const bar1 = document.createElementNS(xmlns, 'line');
+        bar1.setAttribute('x1', '-15');
+        bar1.setAttribute('y1', '-10');
+        bar1.setAttribute('x2', '15');
+        bar1.setAttribute('y2', '-10');
+        bar1.setAttribute('stroke', '#000');
+        bar1.setAttribute('stroke-width', '2');
+        
+        const bar2 = document.createElementNS(xmlns, 'line');
+        bar2.setAttribute('x1', '-12');
+        bar2.setAttribute('y1', '0');
+        bar2.setAttribute('x2', '12');
+        bar2.setAttribute('y2', '0');
+        bar2.setAttribute('stroke', '#000');
+        bar2.setAttribute('stroke-width', '2');
+        
+        gridSymbol.appendChild(tower);
+        gridSymbol.appendChild(bar1);
+        gridSymbol.appendChild(bar2);
+        defs.appendChild(gridSymbol);
+        
+        svg.appendChild(defs);
+
+        // Layout positions - new vertical layout
+        const pvX = 100; // PV modules on the left
+        const invX = 300; // Inverters to the right of PV modules
+        const startY = 150; // Starting Y position
+        const verticalSpacing = 80; // Vertical spacing between components
+        const meterX = 700;
+        const gridX = 850;
+        const batY = 500;
+
+        
+        const titleText = document.createElementNS(xmlns, 'text');
+        titleText.setAttribute('x', '500');
+        titleText.setAttribute('y', '40');
+        titleText.setAttribute('text-anchor', 'middle');
+        titleText.setAttribute('font-family', 'Arial');
+        titleText.setAttribute('font-size', '14');
+        titleText.setAttribute('font-weight', 'bold');
+        titleText.textContent = state.projectName || 'PV-Anlage Schaltplan';
+        svg.appendChild(titleText);
+
+        // Data box in upper right corner
+        const dataBoxX = width - 200;
+        const dataBoxY = 20;
+        const dataBoxWidth = 180;
+        const dataBoxHeight = 120;
+        
+        // Data box background
+        const dataBoxBg = document.createElementNS(xmlns, 'rect');
+        dataBoxBg.setAttribute('x', dataBoxX);
+        dataBoxBg.setAttribute('y', dataBoxY);
+        dataBoxBg.setAttribute('width', dataBoxWidth);
+        dataBoxBg.setAttribute('height', dataBoxHeight);
+        dataBoxBg.setAttribute('fill', '#f8f9fa');
+        dataBoxBg.setAttribute('stroke', '#000');
+        dataBoxBg.setAttribute('stroke-width', '1');
+        dataBoxBg.setAttribute('rx', '5');
+        svg.appendChild(dataBoxBg);
+        
+        // Calculate totals for data box
+        const totalPvPower = state.solarAreas.reduce((sum, sa) => sum + (sa.modules * state.moduleConfig.wattage), 0);
+        const totalInvPower = state.inverters.reduce((sum, inv) => sum + inv.ac_power_w, 0);
+        
+        // Data box title
+        const dataBoxTitle = document.createElementNS(xmlns, 'text');
+        dataBoxTitle.setAttribute('x', dataBoxX + 10);
+        dataBoxTitle.setAttribute('y', dataBoxY + 18);
+        dataBoxTitle.setAttribute('font-family', 'Arial');
+        dataBoxTitle.setAttribute('font-size', '11');
+        dataBoxTitle.setAttribute('font-weight', 'bold');
+        dataBoxTitle.textContent = 'Anlagendaten:';
+        svg.appendChild(dataBoxTitle);
+        
+        // PV-Generator gesamt
+        const pvTotalLabel = document.createElementNS(xmlns, 'text');
+        pvTotalLabel.setAttribute('x', dataBoxX + 10);
+        pvTotalLabel.setAttribute('y', dataBoxY + 35);
+        pvTotalLabel.setAttribute('font-family', 'Arial');
+        pvTotalLabel.setAttribute('font-size', '9');
+        pvTotalLabel.textContent = 'PV-Generator gesamt:';
+        svg.appendChild(pvTotalLabel);
+        
+        const pvTotalValue = document.createElementNS(xmlns, 'text');
+        pvTotalValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+        pvTotalValue.setAttribute('y', dataBoxY + 35);
+        pvTotalValue.setAttribute('text-anchor', 'end');
+        pvTotalValue.setAttribute('font-family', 'Arial');
+        pvTotalValue.setAttribute('font-size', '9');
+        pvTotalValue.setAttribute('font-weight', 'bold');
+        pvTotalValue.textContent = `${(totalPvPower/1000).toFixed(2)} kWp`;
+        svg.appendChild(pvTotalValue);
+        
+        // Wechselrichter gesamt
+        const invTotalLabel = document.createElementNS(xmlns, 'text');
+        invTotalLabel.setAttribute('x', dataBoxX + 10);
+        invTotalLabel.setAttribute('y', dataBoxY + 50);
+        invTotalLabel.setAttribute('font-family', 'Arial');
+        invTotalLabel.setAttribute('font-size', '9');
+        invTotalLabel.textContent = 'Wechselrichter gesamt:';
+        svg.appendChild(invTotalLabel);
+        
+        const invTotalValue = document.createElementNS(xmlns, 'text');
+        invTotalValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+        invTotalValue.setAttribute('y', dataBoxY + 50);
+        invTotalValue.setAttribute('text-anchor', 'end');
+        invTotalValue.setAttribute('font-family', 'Arial');
+        invTotalValue.setAttribute('font-size', '9');
+        invTotalValue.setAttribute('font-weight', 'bold');
+        invTotalValue.textContent = `${(totalInvPower/1000).toFixed(2)} kW`;
+        svg.appendChild(invTotalValue);
+        
+        // Speicherkapazität (nur wenn Batterie vorhanden)
+        if (state.battery) {
+          const batCapLabel = document.createElementNS(xmlns, 'text');
+          batCapLabel.setAttribute('x', dataBoxX + 10);
+          batCapLabel.setAttribute('y', dataBoxY + 65);
+          batCapLabel.setAttribute('font-family', 'Arial');
+          batCapLabel.setAttribute('font-size', '9');
+          batCapLabel.textContent = 'Speicherkapazität:';
+          svg.appendChild(batCapLabel);
+          
+          const batCapValue = document.createElementNS(xmlns, 'text');
+          batCapValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+          batCapValue.setAttribute('y', dataBoxY + 65);
+          batCapValue.setAttribute('text-anchor', 'end');
+          batCapValue.setAttribute('font-family', 'Arial');
+          batCapValue.setAttribute('font-size', '9');
+          batCapValue.setAttribute('font-weight', 'bold');
+          batCapValue.textContent = `${state.battery.kwh} kWh`;
+          svg.appendChild(batCapValue);
+          
+          // Max. Batterieleistung (nur wenn angegeben)
+          if (state.battery.power_kw && state.battery.power_kw > 0) {
+            const batPowerLabel = document.createElementNS(xmlns, 'text');
+            batPowerLabel.setAttribute('x', dataBoxX + 10);
+            batPowerLabel.setAttribute('y', dataBoxY + 80);
+            batPowerLabel.setAttribute('font-family', 'Arial');
+            batPowerLabel.setAttribute('font-size', '9');
+            batPowerLabel.textContent = 'Max. Batterieleistung:';
+            svg.appendChild(batPowerLabel);
+            
+            const batPowerValue = document.createElementNS(xmlns, 'text');
+            batPowerValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+            batPowerValue.setAttribute('y', dataBoxY + 80);
+            batPowerValue.setAttribute('text-anchor', 'end');
+            batPowerValue.setAttribute('font-family', 'Arial');
+            batPowerValue.setAttribute('font-size', '9');
+            batPowerValue.setAttribute('font-weight', 'bold');
+            batPowerValue.textContent = `${state.battery.power_kw.toFixed(1)} kW`;
+            svg.appendChild(batPowerValue);
+          }
+        }
+        
+        // Leistungsverhältnis (falls beide Werte > 0)
+        if (totalPvPower > 0 && totalInvPower > 0) {
+          const ratioY = state.battery ? (state.battery.power_kw > 0 ? dataBoxY + 95 : dataBoxY + 80) : dataBoxY + 65;
+          
+          const ratioLabel = document.createElementNS(xmlns, 'text');
+          ratioLabel.setAttribute('x', dataBoxX + 10);
+          ratioLabel.setAttribute('y', ratioY);
+          ratioLabel.setAttribute('font-family', 'Arial');
+          ratioLabel.setAttribute('font-size', '9');
+          ratioLabel.textContent = 'Überdimensionierung:';
+          svg.appendChild(ratioLabel);
+          
+          const ratioValue = document.createElementNS(xmlns, 'text');
+          ratioValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+          ratioValue.setAttribute('y', ratioY);
+          ratioValue.setAttribute('text-anchor', 'end');
+          ratioValue.setAttribute('font-family', 'Arial');
+          ratioValue.setAttribute('font-size', '9');
+          ratioValue.setAttribute('font-weight', 'bold');
+          ratioValue.textContent = `${(totalPvPower/totalInvPower).toFixed(2)}`;
+          svg.appendChild(ratioValue);
+        }
+
+        // Draw PV areas - vertically arranged on the left
+        state.solarAreas.forEach((sa, index) => {
+          const x = pvX;
+          const y = startY + (index * verticalSpacing);
+          
+          // PV symbol
+          const pvGroup = document.createElementNS(xmlns, 'use');
+          pvGroup.setAttribute('href', '#pv-module');
+          pvGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#pv-module');
+          pvGroup.setAttribute('transform', `translate(${x}, ${y})`);
+          svg.appendChild(pvGroup);
+          
+          // PV label
+          const pvLabel = document.createElementNS(xmlns, 'text');
+          pvLabel.setAttribute('x', x);
+          pvLabel.setAttribute('y', y - 30);
+          pvLabel.setAttribute('text-anchor', 'middle');
+          pvLabel.setAttribute('font-family', 'Arial');
+          pvLabel.setAttribute('font-size', '10');
+          pvLabel.setAttribute('font-weight', 'bold');
+          pvLabel.textContent = `${sa.name}`;
+          svg.appendChild(pvLabel);
+          
+          const pvPower = document.createElementNS(xmlns, 'text');
+          pvPower.setAttribute('x', x);
+          pvPower.setAttribute('y', y - 20);
+          pvPower.setAttribute('text-anchor', 'middle');
+          pvPower.setAttribute('font-family', 'Arial');
+          pvPower.setAttribute('font-size', '8');
+          pvPower.setAttribute('fill', '#222');
+          pvPower.textContent = `${sa.modules} × ${state.moduleConfig.wattage}W = ${(sa.modules * state.moduleConfig.wattage / 1000).toFixed(2)} kWp`;
+          svg.appendChild(pvPower);
+        });
+
+        // Draw inverters - positioned at the center of their assigned PV modules
+        state.inverters.forEach((inv, index) => {
+          const x = invX;
+          
+          // Calculate the center Y position of assigned PV modules
+          let invY;
+          if (inv.assignedSolarAreaIds.length > 0) {
+            // Find indices of assigned PV modules
+            const assignedIndices = inv.assignedSolarAreaIds.map(saId => 
+              state.solarAreas.findIndex(sa => sa.id === saId)
+            ).filter(idx => idx !== -1);
+            
+            if (assignedIndices.length > 0) {
+              // Calculate center position
+              const minIndex = Math.min(...assignedIndices);
+              const maxIndex = Math.max(...assignedIndices);
+              const centerIndex = (minIndex + maxIndex) / 2;
+              invY = startY + (centerIndex * verticalSpacing);
+            } else {
+              // Fallback: use sequential positioning
+              invY = startY + (index * verticalSpacing);
+            }
+          } else {
+            // No assigned PV modules: use sequential positioning
+            invY = startY + (index * verticalSpacing);
+          }
+          
+          const invGroup = document.createElementNS(xmlns, 'use');
+          invGroup.setAttribute('href', '#inverter');
+          invGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#inverter');
+          invGroup.setAttribute('transform', `translate(${x}, ${invY})`);
+          svg.appendChild(invGroup);
+          
+          const invLabel = document.createElementNS(xmlns, 'text');
+          invLabel.setAttribute('x', x);
+          invLabel.setAttribute('y', invY - 40);
+          invLabel.setAttribute('text-anchor', 'middle');
+          invLabel.setAttribute('font-family', 'Arial');
+          invLabel.setAttribute('font-size', '10');
+          invLabel.setAttribute('font-weight', 'bold');
+          invLabel.textContent = inv.name;
+          svg.appendChild(invLabel);
+
+          const invInfo = document.createElementNS(xmlns, 'text');
+          invInfo.setAttribute('x', x - 30);
+          invInfo.setAttribute('y', invY - 30);
+          invInfo.setAttribute('text-anchor', 'start');
+          invInfo.setAttribute('font-family', 'Arial');
+          invInfo.setAttribute('font-size', '8');
+          invInfo.setAttribute('fill', '#222');
+          invInfo.textContent = `${(inv.ac_power_w / 1000).toFixed(1)} kW | ${inv.phases}`;
+          svg.appendChild(invInfo);
+
+          // Store inverter position for later use
+          inv._layoutY = invY;
+
+          // Draw connections from PV to inverter
+          inv.assignedSolarAreaIds.forEach(saId => {
+            const saIndex = state.solarAreas.findIndex(sa => sa.id === saId);
+            if (saIndex !== -1) {
+              const saX = pvX;
+              const saY = startY + (saIndex * verticalSpacing);
+              
+              // DC connection line (horizontal from PV to inverter)
+              const dcLine = document.createElementNS(xmlns, 'line');
+              dcLine.setAttribute('x1', saX + 25); // Right edge of PV module
+              dcLine.setAttribute('y1', saY);
+              dcLine.setAttribute('x2', x - 30); // Left edge of inverter
+              dcLine.setAttribute('y2', invY);
+              dcLine.setAttribute('stroke', '#000');
+              dcLine.setAttribute('stroke-width', '2');
+              dcLine.setAttribute('stroke-dasharray', '5,5');
+              svg.appendChild(dcLine);
+            }
+          });
+
+        });
+
+        // Calculate dynamic positions based on number of inverters
+        const busLineY = Math.max(startY + (state.inverters.length * verticalSpacing), startY + 120); // Position below all inverters
+        const meterY = busLineY; // Meter at same height as bus line
+        const gridY = busLineY; // Grid connection at same height as bus line
+        
+        // Draw main AC bus line (Sammelschiene) to meter - parallel connection
+        const busStartX = invX + 60; // Start to the right of inverters
+        const busEndX = meterX - 30;
+        
+        const mainBusLine = document.createElementNS(xmlns, 'line');
+        mainBusLine.setAttribute('x1', busStartX);
+        mainBusLine.setAttribute('y1', busLineY);
+        mainBusLine.setAttribute('x2', busEndX);
+        mainBusLine.setAttribute('y2', busLineY);
+        mainBusLine.setAttribute('stroke', '#000');
+        mainBusLine.setAttribute('stroke-width', '4');
+        svg.appendChild(mainBusLine);
+
+        // Connect each inverter to the bus line (parallel connection)
+        state.inverters.forEach((inv, index) => {
+          const x = invX;
+          const y = inv._layoutY; // Use the calculated center position
+          
+          // Horizontal line from inverter to vertical collector, then down to bus
+          const invToBusLineHorizontal = document.createElementNS(xmlns, 'line');
+          invToBusLineHorizontal.setAttribute('x1', x + 30); // Right edge of inverter
+          invToBusLineHorizontal.setAttribute('y1', y);
+          invToBusLineHorizontal.setAttribute('x2', busStartX);
+          invToBusLineHorizontal.setAttribute('y2', y);
+          invToBusLineHorizontal.setAttribute('stroke', '#000');
+          invToBusLineHorizontal.setAttribute('stroke-width', '3');
+          svg.appendChild(invToBusLineHorizontal);
+          
+          // Vertical line from horizontal line to bus
+          const invToBusLineVertical = document.createElementNS(xmlns, 'line');
+          invToBusLineVertical.setAttribute('x1', busStartX);
+          invToBusLineVertical.setAttribute('y1', y);
+          invToBusLineVertical.setAttribute('x2', busStartX);
+          invToBusLineVertical.setAttribute('y2', busLineY);
+          invToBusLineVertical.setAttribute('stroke', '#000');
+          invToBusLineVertical.setAttribute('stroke-width', '3');
+          svg.appendChild(invToBusLineVertical);
+          
+          // Junction point on bus line
+          const junctionPoint = document.createElementNS(xmlns, 'circle');
+          junctionPoint.setAttribute('cx', busStartX);
+          junctionPoint.setAttribute('cy', busLineY);
+          junctionPoint.setAttribute('r', '3');
+          junctionPoint.setAttribute('fill', '#000');
+          svg.appendChild(junctionPoint);
+        });
+
+        // Connection from bus line to meter
+        const busToMeterLine = document.createElementNS(xmlns, 'line');
+        busToMeterLine.setAttribute('x1', busEndX);
+        busToMeterLine.setAttribute('y1', busLineY);
+        busToMeterLine.setAttribute('x2', meterX - 30);
+        busToMeterLine.setAttribute('y2', meterY);
+        busToMeterLine.setAttribute('stroke', '#000');
+        busToMeterLine.setAttribute('stroke-width', '4');
+        svg.appendChild(busToMeterLine);
+
+        // Draw battery if exists - positioned above first PV module on the left
+        if (state.battery) {
+          // Battery connection to inverter
+          if (state.battery.assignedInvId) {
+            const assignedInverter = state.inverters.find(inv => inv.id === state.battery.assignedInvId);
+            if (assignedInverter) {
+              const assignedInvX = invX;
+              const assignedInvY = assignedInverter._layoutY; // Use the calculated center position
+              // Position battery above the first PV module on the left side
+              const batX = pvX; // Same X position as PV modules
+              const batY = startY - 80; // Above the first PV module
+              
+              const batGroup = document.createElementNS(xmlns, 'use');
+              batGroup.setAttribute('href', '#battery');
+              batGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#battery');
+              batGroup.setAttribute('transform', `translate(${batX}, ${batY})`);
+              svg.appendChild(batGroup);
+              
+              const batLabel = document.createElementNS(xmlns, 'text');
+              batLabel.setAttribute('x', batX);
+              batLabel.setAttribute('y', batY - 35);
+              batLabel.setAttribute('text-anchor', 'middle');
+              batLabel.setAttribute('font-family', 'Arial');
+              batLabel.setAttribute('font-size', '10');
+              batLabel.setAttribute('font-weight', 'bold');
+              batLabel.textContent = state.battery.name;
+              svg.appendChild(batLabel);
+              
+              const batInfo = document.createElementNS(xmlns, 'text');
+              batInfo.setAttribute('x', batX);
+              batInfo.setAttribute('y', batY - 25);
+              batInfo.setAttribute('text-anchor', 'middle');
+              batInfo.setAttribute('font-family', 'Arial');
+              batInfo.setAttribute('font-size', '8');
+              batInfo.setAttribute('fill', '#222');
+              batInfo.textContent = `${state.battery.kwh} kWh | ${state.battery.power_kw ? state.battery.power_kw + ' kW DC' : ''}`;
+              svg.appendChild(batInfo);
+              
+              // L-shaped connection from battery (top-left) to inverter
+              // Horizontal line from battery to the right
+              const batLineHorizontal = document.createElementNS(xmlns, 'line');
+              batLineHorizontal.setAttribute('x1', batX + 15); // Right edge of battery
+              batLineHorizontal.setAttribute('y1', batY);
+              batLineHorizontal.setAttribute('x2', assignedInvX - 50); // Stop before inverter
+              batLineHorizontal.setAttribute('y2', batY);
+              batLineHorizontal.setAttribute('stroke', '#000');
+              batLineHorizontal.setAttribute('stroke-width', '2');
+              batLineHorizontal.setAttribute('stroke-dasharray', '5,5');
+              svg.appendChild(batLineHorizontal);
+              
+              // Vertical line down to inverter level
+              const batLineVertical = document.createElementNS(xmlns, 'line');
+              batLineVertical.setAttribute('x1', assignedInvX - 50);
+              batLineVertical.setAttribute('y1', batY);
+              batLineVertical.setAttribute('x2', assignedInvX - 50);
+              batLineVertical.setAttribute('y2', assignedInvY);
+              batLineVertical.setAttribute('stroke', '#000');
+              batLineVertical.setAttribute('stroke-width', '2');
+              batLineVertical.setAttribute('stroke-dasharray', '5,5');
+              svg.appendChild(batLineVertical);
+              
+              // Final horizontal line to inverter
+              const batLineToInv = document.createElementNS(xmlns, 'line');
+              batLineToInv.setAttribute('x1', assignedInvX - 50);
+              batLineToInv.setAttribute('y1', assignedInvY);
+              batLineToInv.setAttribute('x2', assignedInvX - 30); // Left edge of inverter
+              batLineToInv.setAttribute('y2', assignedInvY);
+              batLineToInv.setAttribute('stroke', '#000');
+              batLineToInv.setAttribute('stroke-width', '2');
+              batLineToInv.setAttribute('stroke-dasharray', '5,5');
+              svg.appendChild(batLineToInv);
+              
+              // Junction points
+              const batJunction1 = document.createElementNS(xmlns, 'circle');
+              batJunction1.setAttribute('cx', assignedInvX - 50);
+              batJunction1.setAttribute('cy', batY);
+              batJunction1.setAttribute('r', '2');
+              batJunction1.setAttribute('fill', '#000');
+              svg.appendChild(batJunction1);
+              
+              const batJunction2 = document.createElementNS(xmlns, 'circle');
+              batJunction2.setAttribute('cx', assignedInvX - 50);
+              batJunction2.setAttribute('cy', assignedInvY);
+              batJunction2.setAttribute('r', '2');
+              batJunction2.setAttribute('fill', '#000');
+              svg.appendChild(batJunction2);
+            }
+          }
+        }
+
+        // Draw meter
+  const meterGroup = document.createElementNS(xmlns, 'use');
+  meterGroup.setAttribute('href', '#meter');
+  meterGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#meter');
+        meterGroup.setAttribute('transform', `translate(${meterX}, ${meterY})`);
+        svg.appendChild(meterGroup);
+        
+        const meterLabel = document.createElementNS(xmlns, 'text');
+        meterLabel.setAttribute('x', meterX);
+        meterLabel.setAttribute('y', meterY - 40);
+        meterLabel.setAttribute('text-anchor', 'middle');
+        meterLabel.setAttribute('font-family', 'Arial');
+        meterLabel.setAttribute('font-size', '10');
+        meterLabel.setAttribute('font-weight', 'bold');
+        meterLabel.textContent = 'Zweirichtungszähler';
+        svg.appendChild(meterLabel);
+
+        // Draw load connection (Hauslast) - branch from AC bus line
+        const loadBranchX = busEndX - 80; // Position on the bus line
+        
+        // Junction point on bus line for load
+        const loadJunctionPoint = document.createElementNS(xmlns, 'circle');
+        loadJunctionPoint.setAttribute('cx', loadBranchX);
+        loadJunctionPoint.setAttribute('cy', busLineY);
+        loadJunctionPoint.setAttribute('r', '3');
+        loadJunctionPoint.setAttribute('fill', '#000');
+        svg.appendChild(loadJunctionPoint);
+        
+        // Line down from bus line to load
+        const loadToBusLine = document.createElementNS(xmlns, 'line');
+        loadToBusLine.setAttribute('x1', loadBranchX);
+        loadToBusLine.setAttribute('y1', busLineY);
+        loadToBusLine.setAttribute('x2', loadBranchX);
+        loadToBusLine.setAttribute('y2', busLineY + 80);
+        loadToBusLine.setAttribute('stroke', '#000');
+        loadToBusLine.setAttribute('stroke-width', '3');
+        svg.appendChild(loadToBusLine);
+
+        // Draw load symbol (circle with X)
+        const loadCircle = document.createElementNS(xmlns, 'circle');
+        loadCircle.setAttribute('cx', loadBranchX);
+        loadCircle.setAttribute('cy', busLineY + 95);
+        loadCircle.setAttribute('r', '15');
+        loadCircle.setAttribute('fill', 'none');
+        loadCircle.setAttribute('stroke', '#000');
+        loadCircle.setAttribute('stroke-width', '2');
+        svg.appendChild(loadCircle);
+
+        // X inside circle
+        const loadX1 = document.createElementNS(xmlns, 'line');
+        loadX1.setAttribute('x1', loadBranchX - 10);
+        loadX1.setAttribute('y1', busLineY + 85);
+        loadX1.setAttribute('x2', loadBranchX + 10);
+        loadX1.setAttribute('y2', busLineY + 105);
+        loadX1.setAttribute('stroke', '#000');
+        loadX1.setAttribute('stroke-width', '2');
+        svg.appendChild(loadX1);
+
+        const loadX2 = document.createElementNS(xmlns, 'line');
+        loadX2.setAttribute('x1', loadBranchX + 10);
+        loadX2.setAttribute('y1', busLineY + 85);
+        loadX2.setAttribute('x2', loadBranchX - 10);
+        loadX2.setAttribute('y2', busLineY + 105);
+        loadX2.setAttribute('stroke', '#000');
+        loadX2.setAttribute('stroke-width', '2');
+        svg.appendChild(loadX2);
+
+        // Load label
+        const loadLabel = document.createElementNS(xmlns, 'text');
+        loadLabel.setAttribute('x', loadBranchX + 25);
+        loadLabel.setAttribute('y', busLineY + 100);
+        loadLabel.setAttribute('text-anchor', 'start');
+        loadLabel.setAttribute('font-family', 'Arial');
+        loadLabel.setAttribute('font-size', '10');
+        loadLabel.setAttribute('font-weight', 'bold');
+        loadLabel.textContent = 'Hauslast';
+        svg.appendChild(loadLabel);
+
+        // Draw grid connection
+  const gridGroup = document.createElementNS(xmlns, 'use');
+  gridGroup.setAttribute('href', '#grid');
+  gridGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#grid');
+        gridGroup.setAttribute('transform', `translate(${gridX}, ${gridY})`);
+        svg.appendChild(gridGroup);
+        
+        const gridLabel = document.createElementNS(xmlns, 'text');
+        gridLabel.setAttribute('x', gridX);
+        gridLabel.setAttribute('y', gridY + 40);
+        gridLabel.setAttribute('text-anchor', 'middle');
+        gridLabel.setAttribute('font-family', 'Arial');
+        gridLabel.setAttribute('font-size', '10');
+        gridLabel.setAttribute('font-weight', 'bold');
+        gridLabel.textContent = 'Netzanschluss';
+        svg.appendChild(gridLabel);
+
+        // Connection meter to grid
+        const gridLine = document.createElementNS(xmlns, 'line');
+        gridLine.setAttribute('x1', meterX + 25);
+        gridLine.setAttribute('y1', meterY);
+        gridLine.setAttribute('x2', gridX - 25);
+        gridLine.setAttribute('y2', gridY);
+        gridLine.setAttribute('stroke', '#000');
+        gridLine.setAttribute('stroke-width', '3');
+        svg.appendChild(gridLine);
+
+        // Add HAK (Hauptanschlusskasten) symbol
+        const hakSymbol = document.createElementNS(xmlns, 'rect');
+        hakSymbol.setAttribute('x', meterX + 35);
+        hakSymbol.setAttribute('y', meterY - 15);
+        hakSymbol.setAttribute('width', '30');
+        hakSymbol.setAttribute('height', '30');
+        hakSymbol.setAttribute('fill', 'none');
+        hakSymbol.setAttribute('stroke', '#000');
+        hakSymbol.setAttribute('stroke-width', '2');
+        svg.appendChild(hakSymbol);
+        
+        // HAK internal structure (simplified)
+        const hakLine1 = document.createElementNS(xmlns, 'line');
+        hakLine1.setAttribute('x1', meterX + 40);
+        hakLine1.setAttribute('y1', meterY - 10);
+        hakLine1.setAttribute('x2', meterX + 60);
+        hakLine1.setAttribute('y2', meterY - 10);
+        hakLine1.setAttribute('stroke', '#000');
+        hakLine1.setAttribute('stroke-width', '1');
+        svg.appendChild(hakLine1);
+        
+        const hakLine2 = document.createElementNS(xmlns, 'line');
+        hakLine2.setAttribute('x1', meterX + 40);
+        hakLine2.setAttribute('y1', meterY);
+        hakLine2.setAttribute('x2', meterX + 60);
+        hakLine2.setAttribute('y2', meterY);
+        hakLine2.setAttribute('stroke', '#000');
+        hakLine2.setAttribute('stroke-width', '1');
+        svg.appendChild(hakLine2);
+        
+        const hakLine3 = document.createElementNS(xmlns, 'line');
+        hakLine3.setAttribute('x1', meterX + 40);
+        hakLine3.setAttribute('y1', meterY + 10);
+        hakLine3.setAttribute('x2', meterX + 60);
+        hakLine3.setAttribute('y2', meterY + 10);
+        hakLine3.setAttribute('stroke', '#000');
+        hakLine3.setAttribute('stroke-width', '1');
+        svg.appendChild(hakLine3);
+        
+        const hakLabel = document.createElementNS(xmlns, 'text');
+        hakLabel.setAttribute('x', meterX + 50);
+        hakLabel.setAttribute('y', meterY - 20);
+        hakLabel.setAttribute('text-anchor', 'middle');
+        hakLabel.setAttribute('font-family', 'Arial');
+        hakLabel.setAttribute('font-size', '9');
+        hakLabel.setAttribute('font-weight', 'bold');
+        hakLabel.textContent = 'HAK';
+        svg.appendChild(hakLabel);
+
+        return svg;
+      }
+
+      async function renderPreview(){
+        if(state.solarAreas.length===0 && state.inverters.length===0){ alert('Füge mindestens eine Solarfläche oder einen Wechselrichter hinzu.'); return; }
+        
+        try{
+          // Generate professional electrical schematic
+          const svg = buildProfessionalSVG();
+          
+          // put svg into preview
+          const wrap = $('svgWrap'); 
+          wrap.innerHTML = '';
+          wrap.appendChild(svg);
+        }catch(err){ 
+          alert('Fehler bei Schaltplan-Generierung: '+err.message); 
+          console.error(err);
+        }
+      }
+
+
+
+      $('gen').addEventListener('click', ()=>{ renderPreview(); });
+
+      // Professional PDF export (A4 landscape) with enhanced layout
+      $('exportPdf').addEventListener('click', async ()=>{
+        const svgEl = $('svgWrap').querySelector('svg');
+        if(!svgEl) return alert('SVG nicht gefunden');
+
+        try{
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+          
+          // A4 landscape dimensions in mm
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+
+          // Nur SVG: seitenfüllend (fit-to-page, keine Ränder)
+          const svgClone = svgEl.cloneNode(true);
+          svgClone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+          // 1) <use>-Elemente inline expandieren, damit nichts abgeschnitten wird
+          (function inlineUse(root){
+            const uses = Array.from(root.querySelectorAll('use'));
+            uses.forEach(use => {
+              const href = use.getAttribute('href') || use.getAttributeNS('http://www.w3.org/1999/xlink','href');
+              if(!href || !href.startsWith('#')) return;
+              const id = href.slice(1);
+              const def = svgClone.querySelector(`#${CSS.escape(id)}`);
+              if(!def) return;
+              const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              // Transform übernehmen
+              const tf = use.getAttribute('transform');
+              if(tf) g.setAttribute('transform', tf);
+              // Inhalt klonen
+              const cloned = def.cloneNode(true);
+              // id entfernen, um Duplikate zu vermeiden
+              cloned.removeAttribute('id');
+              g.appendChild(cloned);
+              // use ersetzen
+              use.replaceWith(g);
+            });
+          })(svgClone);
+
+          // 2) BBox korrekt ermitteln: temporär in DOM einfügen, viewBox setzen
+          const tempContainer = document.createElement('div');
+          tempContainer.style.position = 'fixed';
+          tempContainer.style.left = '-10000px';
+          tempContainer.style.top = '-10000px';
+          document.body.appendChild(tempContainer);
+          tempContainer.appendChild(svgClone);
+          try {
+            const bbox = svgClone.getBBox();
+            if(bbox && isFinite(bbox.x) && isFinite(bbox.y) && isFinite(bbox.width) && isFinite(bbox.height) && bbox.width>0 && bbox.height>0){
+              const pad = 2;
+              const vbX = bbox.x - pad;
+              const vbY = bbox.y - pad;
+              const vbW = bbox.width + 2*pad;
+              const vbH = bbox.height + 2*pad;
+              svgClone.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+              svgClone.removeAttribute('width');
+              svgClone.removeAttribute('height');
+            }
+          } finally {
+            // im DOM belassen, bis svg2pdf gerendert hat (damit Styles/BBox stabil bleiben)
+          }
+          // SVG-Logikgröße bestimmen
+          let vb = svgClone.viewBox && svgClone.viewBox.baseVal;
+          let svgW = (vb && vb.width) ? vb.width : parseFloat(svgClone.getAttribute('width')) || 1000;
+          let svgH = (vb && vb.height) ? vb.height : parseFloat(svgClone.getAttribute('height')) || 700;
+
+          // Fit-to-page Skalierung (Seite komplett ausnutzen, Seitenverhältnis beibehalten)
+          const scale = Math.min(pageWidth / svgW, pageHeight / svgH);
+          const drawW = svgW * scale;
+          const drawH = svgH * scale;
+          const xOffset = (pageWidth - drawW) / 2;
+          const yOffset = (pageHeight - drawH) / 2;
+
+          // Nur SVG in PDF rendern
+          await window.svg2pdf.svg2pdf(svgClone, pdf, {
+            xOffset,
+            yOffset,
+            scale
+          });
+          // temporären Knoten entfernen
+          if(tempContainer && tempContainer.parentNode){
+            tempContainer.parentNode.removeChild(tempContainer);
+          }
+          
+          pdf.save((state.projectName || 'pv-schaltplan') + '_professionell.pdf');
+        }catch(err){ 
+          alert('PDF Export fehlgeschlagen: '+err.message); 
+          console.error(err);
+        }
+      });
+
+      // initial render
+      $('moduleInfo').value = state.moduleConfig.info;
+      $('moduleWattage').value = state.moduleConfig.wattage;
+      renderLists();
+
+    })();
+  </script>
+</body>
+</html>
