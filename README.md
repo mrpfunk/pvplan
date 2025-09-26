@@ -46,8 +46,8 @@ Ein benutzerfreundlicher Web-basierter Generator für professionelle Photovoltai
 ### Quick Start
 1. **Repository klonen**
    ```bash
-   git clone https://github.com/mrpfunk/pv-schaltplan.git
-   cd pv-schaltplan
+   git clone https://github.com/mrpfunk/pvplan.git
+   cd pvplan
    ```
 
 2. **Anwendung starten**
@@ -111,7 +111,7 @@ const strings = Math.ceil(modules / 2); // Optimierte Verschaltung
 
 ### Datei-Struktur
 ```
-pv-schaltplan/
+pvplan/
 ├── src/
 │   └── index.html         # Hauptanwendung (HTML/CSS/JS)
 └── README.md              # Diese Dokumentation
@@ -168,9 +168,9 @@ Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe [LICENSE](LICENSE) Da
 
 ## 📞 Support & Kontakt
 
-- **Issues**: [GitHub Issues](https://github.com/mrpfunk/pv-schaltplan/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mrpfunk/pv-schaltplan/discussions)
-- **Wiki**: [Dokumentation](https://github.com/mrpfunk/pv-schaltplan/wiki)
+- **Issues**: [GitHub Issues](https://github.com/mrpfunk/pvplan/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mrpfunk/pvplan/discussions)
+- **Wiki**: [Dokumentation](https://github.com/mrpfunk/pvplan/wiki)
 
 ## 🙏 Danksagungen
 
@@ -185,7 +185,7 @@ Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe [LICENSE](LICENSE) Da
 
 **⭐ Gefällt Ihnen das Projekt? Geben Sie uns einen Stern!**
 
-[⚡ Live Demo](https://mrpfunk.github.io/pv-schaltplan/) | [📖 Wiki](https://github.com/mrpfunk/pv-schaltplan/wiki) | [🐛 Issues](https://github.com/mrpfunk/pv-schaltplan/issues)
+[⚡ Live Demo](https://mrpfunk.github.io/pvplan/) | [📖 Wiki](https://github.com/mrpfunk/pvplan/wiki) | [🐛 Issues](https://github.com/mrpfunk/pvplan/issues)
 
 Made with ❤️ für die PV-Community
 
