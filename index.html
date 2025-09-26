@@ -9,7 +9,7 @@
     body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;height:100vh;display:flex;gap:12px}
     header{padding:10px 14px;background:#f4f6fb;border-bottom:1px solid #e6e9f2}
     .sidebar{width:380px;min-width:360px;padding:12px;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;border-right:1px solid #eceef6}
-    .main{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box}
+    .main{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;min-height:0}
     h2{margin:6px 0}
     label{display:block;margin-top:8px;font-size:13px}
     input,select{width:100%;max-width:100%;padding:8px;margin-top:4px;border:1px solid #d8dbe9;border-radius:6px;box-sizing:border-box}
@@ -21,12 +21,12 @@
     table{width:100%;border-collapse:collapse;table-layout:fixed}
     th,td{padding:6px;text-align:left;border-bottom:1px solid #f0f2fa;font-size:13px;word-wrap:break-word;overflow:hidden}
     .controls{display:flex;gap:8px;align-items:center}
-    .preview{flex:1;border:1px solid #e6e9f2;border-radius:8px;padding:8px;background:#fff;overflow:auto}
-    .svg-container{width:100%;height:700px;display:flex;justify-content:center;align-items:flex-start}
+    .preview{flex:1;border:1px solid #e6e9f2;border-radius:8px;padding:8px;background:#fff;overflow:auto;display:flex;flex-direction:column;min-height:0}
+    .svg-container{width:100%;flex:1;display:flex;justify-content:center;align-items:flex-start;min-height:0}
     .small{font-size:12px}
     .note{background:#fff8e6;padding:8px;border-radius:6px;font-size:13px}
     footer{padding:8px;border-top:1px solid #eceef6;margin-top:auto}
-    .row{display:flex;gap:8px}
+    .row{display:flex;gap:8px;flex:1;min-height:0}
     .half{flex:1}
     input[type=file]{padding:6px}
   </style>
@@ -82,6 +82,14 @@
     <label>AC-Nennleistung (W)
       <input id="invAcW" type="number" min="1" value="5000" />
     </label>
+    <label>LS-Nennstrom (A)
+      <input id="invLsAmps" type="number" min="6" max="125" value="25" />
+      <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
+    </label>
+    <label>Leitungsquerschnitt (mm²)
+      <input id="invCableSize" type="number" min="1.5" max="50" step="0.5" value="4" />
+      <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
+    </label>
     <label>Solarflächen zuordnen (STRG/SHIFT für mehrere)
       <select id="invAssign" multiple style="height:120px"></select>
     </label>
@@ -90,7 +98,7 @@
       <button id="clearInv" class="danger">Alle Wechselrichter löschen</button>
     </div>
     <div class="list">
-      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>Flächen</th></tr></thead><tbody></tbody></table>
+      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>LS[A]</th><th>Kabel[mm²]</th><th>Flächen</th></tr></thead><tbody></tbody></table>
     </div>
     <hr />
     <h2>Batterie</h2>
@@ -155,15 +163,15 @@
 
       // helpers
       const $ = id => document.getElementById(id);
-      
+
       // ID generator with dynamic starting point
       let uidCounter = 1;
       const uid = () => (uidCounter++).toString(36);
-      
+
       // Function to update UID counter based on existing IDs
       function updateUidCounter() {
         let maxId = 0;
-        
+
         // Check solar areas
         state.solarAreas.forEach(sa => {
           const match = sa.id.match(/^SA(.+)$/);
@@ -174,7 +182,7 @@
             }
           }
         });
-        
+
         // Check inverters
         state.inverters.forEach(inv => {
           const match = inv.id.match(/^INV(.+)$/);
@@ -185,7 +193,7 @@
             }
           }
         });
-        
+
         uidCounter = Math.max(uidCounter, maxId);
       }
 
@@ -194,6 +202,98 @@
       const invTable = $('invTable').querySelector('tbody');
       const invAssign = $('invAssign');
       const batAssign = $('batAssign');
+
+      // Circuit breaker calculation function (shared between UI and SVG generation)
+      function calculateNormalCurrent(acPowerW, phases) {
+        const acPowerKW = acPowerW / 1000;
+        let current;
+
+        if (phases === '1-ph') {
+          // 1-phase: I = P / (U * cos φ), U = 230V, cos φ ≈ 1
+          current = acPowerKW / 0.23;
+        } else {
+          // 3-phase: I = P / (√3 * U * cos φ), U = 400V, cos φ ≈ 1
+          current = acPowerKW / (Math.sqrt(3) * 0.4);
+        }
+
+        // Round up to next standard circuit breaker size
+        const standardSizes = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125];
+        for (let size of standardSizes) {
+          if (current <= size * 0.8) { // 80% rule for continuous load
+            return size;
+          }
+        }
+        return 125; // fallback for very high power
+      }
+
+      function calculateCableSize(acPowerW, phases, cableLengthMeters = 10) {
+        const acPowerKW = acPowerW / 1000;
+        let current;
+
+        if (phases === '1-ph') {
+          current = acPowerKW / 0.23;
+          var voltage = 230;
+        } else {
+          current = acPowerKW / (Math.sqrt(3) * 0.4);
+          var voltage = 400;
+        }
+
+        const rho = 0.0175; // spezifischer Widerstand Kupfer in Ω·mm²/m
+        const totalLength = cableLengthMeters * 2; // Hin- und Rückleitung
+
+        const cableSizes = [
+          { size: 1.5, capacity: 18.5 },
+          { size: 2.5, capacity: 25 },
+          { size: 4, capacity: 32 },
+          { size: 6, capacity: 41 },
+          { size: 10, capacity: 57 },
+          { size: 16, capacity: 76 },
+          { size: 25, capacity: 101 },
+          { size: 35, capacity: 125 },
+          { size: 50, capacity: 151 }
+        ];
+
+        for (let cable of cableSizes) {
+          const voltageDrop = (2 * totalLength * current * rho) / cable.size;
+          const maxDrop = voltage * 0.03; // max. 3% Spannungsabfall
+
+          if (current <= cable.capacity * 0.8 && voltageDrop <= maxDrop) {
+            return cable.size;
+          }
+        }
+
+        return 50; // fallback
+      }
+
+      // Cable cross-section calculation based on LS current rating and voltage drop
+      function calculateCableSizeFromLsCurrent(lsAmps, cableLengthMeters = 10, voltage = 230) {
+        const rho = 0.0175; // spezifischer Widerstand von Kupfer in Ω·mm²/m
+        const totalLength = cableLengthMeters * 2; // Hin- und Rückleitung
+        const maxVoltageDrop = voltage * 0.03; // maximal erlaubter Spannungsfall (z. B. 3%)
+
+        const cableSizes = [
+          { size: 1.5, capacity: 18.5 },
+          { size: 2.5, capacity: 25 },
+          { size: 4, capacity: 32 },
+          { size: 6, capacity: 41 },
+          { size: 10, capacity: 57 },
+          { size: 16, capacity: 76 },
+          { size: 25, capacity: 101 },
+          { size: 35, capacity: 125 },
+          { size: 50, capacity: 151 }
+        ];
+
+        for (let cable of cableSizes) {
+          const voltageDrop = (totalLength * lsAmps * rho) / cable.size;
+
+          if (lsAmps <= cable.capacity && voltageDrop <= maxVoltageDrop) {
+            return cable.size;
+          }
+        }
+
+        return 50; // fallback für sehr hohe Ströme oder lange Leitung
+      }
+
 
       function renderLists(){
         // solarareas
@@ -208,7 +308,7 @@
         invTable.innerHTML=''; batAssign.innerHTML=''; batAssign.appendChild(new Option('-- keiner --',''));
         state.inverters.forEach(inv=>{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
+          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.ls_amps || 'N/A'}A</td><td>${inv.cable_size || 'N/A'}mm²</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
           invTable.appendChild(tr);
           batAssign.appendChild(new Option(`${inv.name} (${inv.id})`, inv.id));
         });
@@ -254,10 +354,12 @@
         const name = $('invName').value.trim()||'WR';
         const phases = $('invPhases').value;
         const ac_power_w = parseFloat($('invAcW').value)||0;
+        const ls_amps = parseInt($('invLsAmps').value)||25;
+        const cable_size = parseFloat($('invCableSize').value)||4;
         const assigned = Array.from($('invAssign').selectedOptions).map(o=>o.value);
         const id = 'INV'+uid();
-        state.inverters.push({id,name,phases,ac_power_w,assignedSolarAreaIds:assigned,assignedBatteryId:null});
-        $('invName').value=''; $('invAcW').value=5000; $('invAssign').selectedIndex=-1;
+        state.inverters.push({id,name,phases,ac_power_w,ls_amps,cable_size,assignedSolarAreaIds:assigned,assignedBatteryId:null});
+        $('invName').value=''; $('invAcW').value=5000; $('invLsAmps').value=25; $('invCableSize').value=4; $('invAssign').selectedIndex=-1;
         renderLists();
       });
 
@@ -278,11 +380,11 @@
       // project controls
       $('newProject').addEventListener('click', ()=>{
         if(!confirm('Neues Projekt erstellen? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
-        state.projectName = 'Mein PV-Projekt'; 
+        state.projectName = 'Mein PV-Projekt';
         state.moduleConfig = { info: '', wattage: 420 };
-        state.solarAreas=[]; state.inverters=[]; state.battery=null; 
+        state.solarAreas=[]; state.inverters=[]; state.battery=null;
         uidCounter = 1; // Reset counter for new project
-        renderLists(); 
+        renderLists();
         $('projectName').value='';
         $('moduleInfo').value='';
         $('moduleWattage').value=420;
@@ -294,9 +396,45 @@
 
       // module config listeners
       $('moduleInfo').addEventListener('input',(e)=>{ state.moduleConfig.info = e.target.value; renderLists(); });
-      $('moduleWattage').addEventListener('input',(e)=>{ 
-        state.moduleConfig.wattage = parseFloat(e.target.value) || 420; 
-        renderLists(); 
+
+      // Auto-calculate LS suggestion when AC power or phases change
+      function updateLsSuggestion() {
+        const acPowerW = parseFloat($('invAcW').value) || 0;
+        const phases = $('invPhases').value;
+        if (acPowerW > 0) {
+          const lsSuggestion = calculateNormalCurrent(acPowerW, phases);
+          $('invLsAmps').value = lsSuggestion;
+          $('invLsAmps').style.backgroundColor = '#e8f5e8'; // Light green to indicate auto-calculated
+
+          setTimeout(() => {
+            $('invLsAmps').style.backgroundColor = '';
+          }, 500);
+
+          // Trigger cable suggestion update based on new LS value
+          updateCableSuggestion();
+        }
+      }
+
+      // Auto-calculate cable suggestion when LS current changes
+      function updateCableSuggestion() {
+        const lsAmps = parseInt($('invLsAmps').value) || 0;
+        if (lsAmps > 0) {
+          const cableSuggestion = calculateCableSizeFromLsCurrent(lsAmps);
+          $('invCableSize').value = cableSuggestion;
+          $('invCableSize').style.backgroundColor = '#e8f5e8'; // Light green to indicate auto-calculated
+
+          setTimeout(() => {
+            $('invCableSize').style.backgroundColor = '';
+          }, 500);
+        }
+      }
+
+      $('invAcW').addEventListener('input', updateLsSuggestion);
+      $('invPhases').addEventListener('change', updateLsSuggestion);
+      $('invLsAmps').addEventListener('input', updateCableSuggestion);
+      $('moduleWattage').addEventListener('input',(e)=>{
+        state.moduleConfig.wattage = parseFloat(e.target.value) || 420;
+        renderLists();
       });
 
       // save/load
@@ -311,18 +449,18 @@
 
       $('loadFile').addEventListener('change', async (e)=>{
         const f = e.target.files[0]; if(!f) return; const txt = await f.text();
-        try{ 
-          const obj = JSON.parse(txt); 
-          state.projectName = obj.projectName||state.projectName; 
+        try{
+          const obj = JSON.parse(txt);
+          state.projectName = obj.projectName||state.projectName;
           state.moduleConfig = obj.moduleConfig||{ info: '', wattage: 420 };
-          state.solarAreas = obj.solarAreas||[]; 
-          state.inverters = obj.inverters||[]; 
-          state.battery = obj.battery||null; 
-          $('projectName').value = state.projectName; 
+          state.solarAreas = obj.solarAreas||[];
+          state.inverters = obj.inverters||[];
+          state.battery = obj.battery||null;
+          $('projectName').value = state.projectName;
           $('moduleInfo').value = state.moduleConfig.info;
           $('moduleWattage').value = state.moduleConfig.wattage;
           updateUidCounter(); // Update counter based on loaded IDs
-          renderLists(); 
+          renderLists();
         }catch(err){ alert('Fehler beim Laden: '+err.message); }
       });
 
@@ -331,7 +469,30 @@
         const width = 1000;
         const height = 700;
         const xmlns = 'http://www.w3.org/2000/svg';
-        
+
+        // Lookup table for circuit breaker nominal current based on AC power
+        function calculateNominalCurrent(acPowerW, phases) {
+          const acPowerKW = acPowerW / 1000;
+          let current;
+
+          if (phases === '1-ph') {
+            // 1-phase: I = P / (U * cos φ), U = 230V, cos φ ≈ 1
+            current = acPowerKW / 0.23;
+          } else {
+            // 3-phase: I = P / (√3 * U * cos φ), U = 400V, cos φ ≈ 1
+            current = acPowerKW / (Math.sqrt(3) * 0.4);
+          }
+
+          // Round up to next standard circuit breaker size
+          const standardSizes = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125];
+          for (let size of standardSizes) {
+            if (current <= size * 0.8) { // 80% rule for continuous load
+              return size;
+            }
+          }
+          return 125; // fallback for very high power
+        }
+
         // Create main SVG container
         const svg = document.createElementNS(xmlns, 'svg');
         svg.setAttribute('width', width);
@@ -343,7 +504,7 @@
 
         // Define symbols and patterns
         const defs = document.createElementNS(xmlns, 'defs');
-        
+
         // PV Module Symbol
         const pvSymbol = document.createElementNS(xmlns, 'g');
         pvSymbol.setAttribute('id', 'pv-module');
@@ -355,7 +516,7 @@
         pvRect.setAttribute('fill', 'none');
         pvRect.setAttribute('stroke', '#000');
         pvRect.setAttribute('stroke-width', '2');
-        
+
         // Solar cell grid pattern
         for(let i = 0; i < 3; i++) {
           for(let j = 0; j < 2; j++) {
@@ -370,7 +531,7 @@
             pvSymbol.appendChild(cell);
           }
         }
-        
+
         pvSymbol.appendChild(pvRect);
         defs.appendChild(pvSymbol);
 
@@ -385,7 +546,7 @@
         invRect.setAttribute('fill', 'none');
         invRect.setAttribute('stroke', '#000');
         invRect.setAttribute('stroke-width', '2');
-        
+
         // DC input symbol (=)
         const dcLine1 = document.createElementNS(xmlns, 'line');
         dcLine1.setAttribute('x1', '-20');
@@ -394,7 +555,7 @@
         dcLine1.setAttribute('y2', '-5');
         dcLine1.setAttribute('stroke', '#000');
         dcLine1.setAttribute('stroke-width', '2');
-        
+
         const dcLine2 = document.createElementNS(xmlns, 'line');
         dcLine2.setAttribute('x1', '-20');
         dcLine2.setAttribute('y1', '5');
@@ -402,14 +563,14 @@
         dcLine2.setAttribute('y2', '5');
         dcLine2.setAttribute('stroke', '#000');
         dcLine2.setAttribute('stroke-width', '2');
-        
+
         // AC output symbol (~)
         const acPath = document.createElementNS(xmlns, 'path');
         acPath.setAttribute('d', 'M 10 -5 Q 15 -10 20 -5 Q 25 0 30 -5');
         acPath.setAttribute('fill', 'none');
         acPath.setAttribute('stroke', '#000');
         acPath.setAttribute('stroke-width', '2');
-        
+
         invSymbol.appendChild(invRect);
         invSymbol.appendChild(dcLine1);
         invSymbol.appendChild(dcLine2);
@@ -419,7 +580,7 @@
         // Battery Symbol
         const batSymbol = document.createElementNS(xmlns, 'g');
         batSymbol.setAttribute('id', 'battery');
-        
+
         // Battery cells
         const longLine1 = document.createElementNS(xmlns, 'line');
         longLine1.setAttribute('x1', '-15');
@@ -428,7 +589,7 @@
         longLine1.setAttribute('y2', '20');
         longLine1.setAttribute('stroke', '#000');
         longLine1.setAttribute('stroke-width', '3');
-        
+
         const shortLine1 = document.createElementNS(xmlns, 'line');
         shortLine1.setAttribute('x1', '-10');
         shortLine1.setAttribute('y1', '-15');
@@ -436,7 +597,7 @@
         shortLine1.setAttribute('y2', '15');
         shortLine1.setAttribute('stroke', '#000');
         shortLine1.setAttribute('stroke-width', '2');
-        
+
         const longLine2 = document.createElementNS(xmlns, 'line');
         longLine2.setAttribute('x1', '-5');
         longLine2.setAttribute('y1', '-20');
@@ -444,7 +605,7 @@
         longLine2.setAttribute('y2', '20');
         longLine2.setAttribute('stroke', '#000');
         longLine2.setAttribute('stroke-width', '3');
-        
+
         const shortLine2 = document.createElementNS(xmlns, 'line');
         shortLine2.setAttribute('x1', '0');
         shortLine2.setAttribute('y1', '-15');
@@ -452,7 +613,7 @@
         shortLine2.setAttribute('y2', '15');
         shortLine2.setAttribute('stroke', '#000');
         shortLine2.setAttribute('stroke-width', '2');
-        
+
         batSymbol.appendChild(longLine1);
         batSymbol.appendChild(shortLine1);
         batSymbol.appendChild(longLine2);
@@ -469,7 +630,7 @@
         meterCircle.setAttribute('fill', 'none');
         meterCircle.setAttribute('stroke', '#000');
         meterCircle.setAttribute('stroke-width', '2');
-        
+
         // kWh text
         const kwhText = document.createElementNS(xmlns, 'text');
         kwhText.setAttribute('x', '0');
@@ -478,59 +639,333 @@
         kwhText.setAttribute('font-family', 'Arial');
         kwhText.setAttribute('font-size', '8');
         kwhText.textContent = 'kWh';
-        
+
         // Bidirectional arrows - left and right pointing
         const arrowLeft = document.createElementNS(xmlns, 'path');
         arrowLeft.setAttribute('d', 'M -5 8 L -15 8 M -12 5 L -15 8 L -12 11');
         arrowLeft.setAttribute('fill', 'none');
         arrowLeft.setAttribute('stroke', '#000');
         arrowLeft.setAttribute('stroke-width', '1.5');
-        
+
         const arrowRight = document.createElementNS(xmlns, 'path');
         arrowRight.setAttribute('d', 'M 5 8 L 15 8 M 12 5 L 15 8 L 12 11');
         arrowRight.setAttribute('fill', 'none');
         arrowRight.setAttribute('stroke', '#000');
         arrowRight.setAttribute('stroke-width', '1.5');
-        
+
         meterSymbol.appendChild(meterCircle);
         meterSymbol.appendChild(kwhText);
         meterSymbol.appendChild(arrowLeft);
         meterSymbol.appendChild(arrowRight);
         defs.appendChild(meterSymbol);
 
-        // Grid Connection Symbol
+        // Leitungsschutzschalter (LS) Symbol
+        const lsSymbol = document.createElementNS(xmlns, 'g');
+        lsSymbol.setAttribute('id', 'circuit-breaker');
+
+        // Main body (rectangle)
+        const lsRect = document.createElementNS(xmlns, 'rect');
+        lsRect.setAttribute('x', '-8');
+        lsRect.setAttribute('y', '-6');
+        lsRect.setAttribute('width', '16');
+        lsRect.setAttribute('height', '12');
+        lsRect.setAttribute('fill', 'none');
+        lsRect.setAttribute('stroke', '#000');
+        lsRect.setAttribute('stroke-width', '2');
+
+        // Circuit breaker symbol (curved line inside)
+        const lsCurve = document.createElementNS(xmlns, 'path');
+        lsCurve.setAttribute('d', 'M -5 -2 Q 0 -4 5 -2 Q 0 0 -5 2');
+        lsCurve.setAttribute('fill', 'none');
+        lsCurve.setAttribute('stroke', '#000');
+        lsCurve.setAttribute('stroke-width', '1.5');
+
+        // Connection points
+        const lsLine1 = document.createElementNS(xmlns, 'line');
+        lsLine1.setAttribute('x1', '0');
+        lsLine1.setAttribute('y1', '-6');
+        lsLine1.setAttribute('x2', '0');
+        lsLine1.setAttribute('y2', '-10');
+        lsLine1.setAttribute('stroke', '#000');
+        lsLine1.setAttribute('stroke-width', '2');
+
+        const lsLine2 = document.createElementNS(xmlns, 'line');
+        lsLine2.setAttribute('x1', '0');
+        lsLine2.setAttribute('y1', '6');
+        lsLine2.setAttribute('x2', '0');
+        lsLine2.setAttribute('y2', '10');
+        lsLine2.setAttribute('stroke', '#000');
+        lsLine2.setAttribute('stroke-width', '2');
+
+        lsSymbol.appendChild(lsRect);
+        lsSymbol.appendChild(lsCurve);
+        lsSymbol.appendChild(lsLine1);
+        lsSymbol.appendChild(lsLine2);
+        defs.appendChild(lsSymbol);
+
+        // Überspannungsschutz (SPD) Symbol
+        const spdSymbol = document.createElementNS(xmlns, 'g');
+        spdSymbol.setAttribute('id', 'surge-protector');
+
+        // Main body (small rectangle)
+        const spdRect = document.createElementNS(xmlns, 'rect');
+        spdRect.setAttribute('x', '-6');
+        spdRect.setAttribute('y', '-4');
+        spdRect.setAttribute('width', '12');
+        spdRect.setAttribute('height', '8');
+        spdRect.setAttribute('fill', 'none');
+        spdRect.setAttribute('stroke', '#000');
+        spdRect.setAttribute('stroke-width', '1.5');
+
+        // SPD characteristic symbol (zigzag line)
+        const spdZigzag = document.createElementNS(xmlns, 'path');
+        spdZigzag.setAttribute('d', 'M -4 -2 L -2 2 L 0 -2 L 2 2 L 4 -2');
+        spdZigzag.setAttribute('fill', 'none');
+        spdZigzag.setAttribute('stroke', '#000');
+        spdZigzag.setAttribute('stroke-width', '1');
+
+        // Connection points
+        const spdLine1 = document.createElementNS(xmlns, 'line');
+        spdLine1.setAttribute('x1', '0');
+        spdLine1.setAttribute('y1', '-4');
+        spdLine1.setAttribute('x2', '0');
+        spdLine1.setAttribute('y2', '-8');
+        spdLine1.setAttribute('stroke', '#000');
+        spdLine1.setAttribute('stroke-width', '1.5');
+
+        const spdLine2 = document.createElementNS(xmlns, 'line');
+        spdLine2.setAttribute('x1', '0');
+        spdLine2.setAttribute('y1', '4');
+        spdLine2.setAttribute('x2', '0');
+        spdLine2.setAttribute('y2', '8');
+        spdLine2.setAttribute('stroke', '#000');
+        spdLine2.setAttribute('stroke-width', '1.5');
+
+        spdSymbol.appendChild(spdRect);
+        spdSymbol.appendChild(spdZigzag);
+        spdSymbol.appendChild(spdLine1);
+        spdSymbol.appendChild(spdLine2);
+        defs.appendChild(spdSymbol);
+
+        // SPD Kombi Symbol (larger surge protector for AC grid)
+        const spdKombiSymbol = document.createElementNS(xmlns, 'g');
+        spdKombiSymbol.setAttribute('id', 'surge-protector-kombi');
+
+        // Main body (larger rectangle)
+        const spdKombiRect = document.createElementNS(xmlns, 'rect');
+        spdKombiRect.setAttribute('x', '-10');
+        spdKombiRect.setAttribute('y', '-8');
+        spdKombiRect.setAttribute('width', '20');
+        spdKombiRect.setAttribute('height', '16');
+        spdKombiRect.setAttribute('fill', 'none');
+        spdKombiRect.setAttribute('stroke', '#000');
+        spdKombiRect.setAttribute('stroke-width', '2');
+
+        // SPD Kombi characteristic symbol (zigzag line - larger)
+        const spdKombiZigzag = document.createElementNS(xmlns, 'path');
+        spdKombiZigzag.setAttribute('d', 'M -7 -4 L -4 4 L 0 -4 L 4 4 L 7 -4');
+        spdKombiZigzag.setAttribute('fill', 'none');
+        spdKombiZigzag.setAttribute('stroke', '#000');
+        spdKombiZigzag.setAttribute('stroke-width', '1.5');
+
+        // Connection points
+        const spdKombiLine1 = document.createElementNS(xmlns, 'line');
+        spdKombiLine1.setAttribute('x1', '0');
+        spdKombiLine1.setAttribute('y1', '-8');
+        spdKombiLine1.setAttribute('x2', '0');
+        spdKombiLine1.setAttribute('y2', '-12');
+        spdKombiLine1.setAttribute('stroke', '#000');
+        spdKombiLine1.setAttribute('stroke-width', '2');
+
+        const spdKombiLine2 = document.createElementNS(xmlns, 'line');
+        spdKombiLine2.setAttribute('x1', '0');
+        spdKombiLine2.setAttribute('y1', '8');
+        spdKombiLine2.setAttribute('x2', '0');
+        spdKombiLine2.setAttribute('y2', '12');
+        spdKombiLine2.setAttribute('stroke', '#000');
+        spdKombiLine2.setAttribute('stroke-width', '2');
+
+        spdKombiSymbol.appendChild(spdKombiRect);
+        spdKombiSymbol.appendChild(spdKombiZigzag);
+        spdKombiSymbol.appendChild(spdKombiLine1);
+        spdKombiSymbol.appendChild(spdKombiLine2);
+        defs.appendChild(spdKombiSymbol);
+
+        // SLS (Selektiver Leitungsschutzschalter) Symbol
+        const slsSymbol = document.createElementNS(xmlns, 'g');
+        slsSymbol.setAttribute('id', 'selective-circuit-breaker');
+
+        // Main body (rectangle)
+        const slsRect = document.createElementNS(xmlns, 'rect');
+        slsRect.setAttribute('x', '-12');
+        slsRect.setAttribute('y', '-8');
+        slsRect.setAttribute('width', '24');
+        slsRect.setAttribute('height', '16');
+        slsRect.setAttribute('fill', 'none');
+        slsRect.setAttribute('stroke', '#000');
+        slsRect.setAttribute('stroke-width', '2');
+
+        // SLS symbol (curved line with S-shape inside)
+        const slsCurve = document.createElementNS(xmlns, 'path');
+        slsCurve.setAttribute('d', 'M -8 -4 Q -4 -6 0 -4 Q 4 -2 8 -4 M -8 4 Q -4 2 0 4 Q 4 6 8 4');
+        slsCurve.setAttribute('fill', 'none');
+        slsCurve.setAttribute('stroke', '#000');
+        slsCurve.setAttribute('stroke-width', '1.5');
+
+        // Connection points
+        const slsLine1 = document.createElementNS(xmlns, 'line');
+        slsLine1.setAttribute('x1', '0');
+        slsLine1.setAttribute('y1', '-8');
+        slsLine1.setAttribute('x2', '0');
+        slsLine1.setAttribute('y2', '-12');
+        slsLine1.setAttribute('stroke', '#000');
+        slsLine1.setAttribute('stroke-width', '2');
+
+        const slsLine2 = document.createElementNS(xmlns, 'line');
+        slsLine2.setAttribute('x1', '0');
+        slsLine2.setAttribute('y1', '8');
+        slsLine2.setAttribute('x2', '0');
+        slsLine2.setAttribute('y2', '12');
+        slsLine2.setAttribute('stroke', '#000');
+        slsLine2.setAttribute('stroke-width', '2');
+
+        slsSymbol.appendChild(slsRect);
+        slsSymbol.appendChild(slsCurve);
+        slsSymbol.appendChild(slsLine1);
+        slsSymbol.appendChild(slsLine2);
+        defs.appendChild(slsSymbol);
+
+        // Grid Connection Symbol (Power Transmission Tower)
         const gridSymbol = document.createElementNS(xmlns, 'g');
         gridSymbol.setAttribute('id', 'grid');
-        
-        // Power line tower simplified
-        const tower = document.createElementNS(xmlns, 'path');
-        tower.setAttribute('d', 'M -20 20 L -20 -15 L -10 -25 L 0 -15 L 10 -25 L 20 -15 L 20 20');
-        tower.setAttribute('fill', 'none');
-        tower.setAttribute('stroke', '#000');
-        tower.setAttribute('stroke-width', '2');
-        
-        // Cross bars
-        const bar1 = document.createElementNS(xmlns, 'line');
-        bar1.setAttribute('x1', '-15');
-        bar1.setAttribute('y1', '-10');
-        bar1.setAttribute('x2', '15');
-        bar1.setAttribute('y2', '-10');
-        bar1.setAttribute('stroke', '#000');
-        bar1.setAttribute('stroke-width', '2');
-        
-        const bar2 = document.createElementNS(xmlns, 'line');
-        bar2.setAttribute('x1', '-12');
-        bar2.setAttribute('y1', '0');
-        bar2.setAttribute('x2', '12');
-        bar2.setAttribute('y2', '0');
-        bar2.setAttribute('stroke', '#000');
-        bar2.setAttribute('stroke-width', '2');
-        
-        gridSymbol.appendChild(tower);
-        gridSymbol.appendChild(bar1);
-        gridSymbol.appendChild(bar2);
+
+        // Main tower structure (vertical mast)
+        const mainMast = document.createElementNS(xmlns, 'line');
+        mainMast.setAttribute('x1', '0');
+        mainMast.setAttribute('y1', '25');
+        mainMast.setAttribute('x2', '0');
+        mainMast.setAttribute('y2', '-30');
+        mainMast.setAttribute('stroke', '#000');
+        mainMast.setAttribute('stroke-width', '3');
+
+        // Tower base (wider at bottom)
+        const baseLeft = document.createElementNS(xmlns, 'line');
+        baseLeft.setAttribute('x1', '-8');
+        baseLeft.setAttribute('y1', '25');
+        baseLeft.setAttribute('x2', '0');
+        baseLeft.setAttribute('y2', '10');
+        baseLeft.setAttribute('stroke', '#000');
+        baseLeft.setAttribute('stroke-width', '2');
+
+        const baseRight = document.createElementNS(xmlns, 'line');
+        baseRight.setAttribute('x1', '8');
+        baseRight.setAttribute('y1', '25');
+        baseRight.setAttribute('x2', '0');
+        baseRight.setAttribute('y2', '10');
+        baseRight.setAttribute('stroke', '#000');
+        baseRight.setAttribute('stroke-width', '2');
+
+        // Cross arms (horizontal beams for power lines)
+        const topArm = document.createElementNS(xmlns, 'line');
+        topArm.setAttribute('x1', '-20');
+        topArm.setAttribute('y1', '-25');
+        topArm.setAttribute('x2', '20');
+        topArm.setAttribute('y2', '-25');
+        topArm.setAttribute('stroke', '#000');
+        topArm.setAttribute('stroke-width', '2');
+
+        const middleArm = document.createElementNS(xmlns, 'line');
+        middleArm.setAttribute('x1', '-16');
+        middleArm.setAttribute('y1', '-10');
+        middleArm.setAttribute('x2', '16');
+        middleArm.setAttribute('y2', '-10');
+        middleArm.setAttribute('stroke', '#000');
+        middleArm.setAttribute('stroke-width', '2');
+
+        const lowerArm = document.createElementNS(xmlns, 'line');
+        lowerArm.setAttribute('x1', '-12');
+        lowerArm.setAttribute('y1', '5');
+        lowerArm.setAttribute('x2', '12');
+        lowerArm.setAttribute('y2', '5');
+        lowerArm.setAttribute('stroke', '#000');
+        lowerArm.setAttribute('stroke-width', '2');
+
+        // Support braces for top arm
+        const braceLeft = document.createElementNS(xmlns, 'line');
+        braceLeft.setAttribute('x1', '-20');
+        braceLeft.setAttribute('y1', '-25');
+        braceLeft.setAttribute('x2', '0');
+        braceLeft.setAttribute('y2', '-15');
+        braceLeft.setAttribute('stroke', '#000');
+        braceLeft.setAttribute('stroke-width', '1');
+
+        const braceRight = document.createElementNS(xmlns, 'line');
+        braceRight.setAttribute('x1', '20');
+        braceRight.setAttribute('y1', '-25');
+        braceRight.setAttribute('x2', '0');
+        braceRight.setAttribute('y2', '-15');
+        braceRight.setAttribute('stroke', '#000');
+        braceRight.setAttribute('stroke-width', '1');
+
+        // Power line insulators (small circles at arm ends)
+        const insulator1 = document.createElementNS(xmlns, 'circle');
+        insulator1.setAttribute('cx', '-20');
+        insulator1.setAttribute('cy', '-25');
+        insulator1.setAttribute('r', '2');
+        insulator1.setAttribute('fill', 'none');
+        insulator1.setAttribute('stroke', '#000');
+        insulator1.setAttribute('stroke-width', '1');
+
+        const insulator2 = document.createElementNS(xmlns, 'circle');
+        insulator2.setAttribute('cx', '0');
+        insulator2.setAttribute('cy', '-25');
+        insulator2.setAttribute('r', '2');
+        insulator2.setAttribute('fill', 'none');
+        insulator2.setAttribute('stroke', '#000');
+        insulator2.setAttribute('stroke-width', '1');
+
+        const insulator3 = document.createElementNS(xmlns, 'circle');
+        insulator3.setAttribute('cx', '20');
+        insulator3.setAttribute('cy', '-25');
+        insulator3.setAttribute('r', '2');
+        insulator3.setAttribute('fill', 'none');
+        insulator3.setAttribute('stroke', '#000');
+        insulator3.setAttribute('stroke-width', '1');
+
+        // Power lines (dashed lines representing cables)
+        const powerLine1 = document.createElementNS(xmlns, 'line');
+        powerLine1.setAttribute('x1', '-25');
+        powerLine1.setAttribute('y1', '-23');
+        powerLine1.setAttribute('x2', '-15');
+        powerLine1.setAttribute('y2', '-23');
+        powerLine1.setAttribute('stroke', '#000');
+        powerLine1.setAttribute('stroke-width', '1');
+        powerLine1.setAttribute('stroke-dasharray', '2,2');
+
+        const powerLine2 = document.createElementNS(xmlns, 'line');
+        powerLine2.setAttribute('x1', '15');
+        powerLine2.setAttribute('y1', '-23');
+        powerLine2.setAttribute('x2', '25');
+        powerLine2.setAttribute('y2', '-23');
+        powerLine2.setAttribute('stroke', '#000');
+        powerLine2.setAttribute('stroke-width', '1');
+        powerLine2.setAttribute('stroke-dasharray', '2,2');
+
+        gridSymbol.appendChild(mainMast);
+        gridSymbol.appendChild(baseLeft);
+        gridSymbol.appendChild(baseRight);
+        gridSymbol.appendChild(topArm);
+        gridSymbol.appendChild(middleArm);
+        gridSymbol.appendChild(lowerArm);
+        gridSymbol.appendChild(braceLeft);
+        gridSymbol.appendChild(braceRight);
+        gridSymbol.appendChild(insulator1);
+        gridSymbol.appendChild(insulator2);
+        gridSymbol.appendChild(insulator3);
+        gridSymbol.appendChild(powerLine1);
+        gridSymbol.appendChild(powerLine2);
         defs.appendChild(gridSymbol);
-        
+
         svg.appendChild(defs);
 
         // Layout positions - new vertical layout
@@ -538,11 +973,14 @@
         const invX = 300; // Inverters to the right of PV modules
         const startY = 150; // Starting Y position
         const verticalSpacing = 80; // Vertical spacing between components
-        const meterX = 700;
-        const gridX = 850;
+        const meterX = 660; // Zweirichtungszähler position
+        const spdKombiX = 740; // SPD Kombi after meter
+        const slsX = 810; // SLS position
+        const hakX = 860; // HAK position (moved right, directly before grid)
+        const gridX = 940; // Grid connection (moved further right)
         const batY = 500;
 
-        
+
         const titleText = document.createElementNS(xmlns, 'text');
         titleText.setAttribute('x', '500');
         titleText.setAttribute('y', '40');
@@ -558,7 +996,7 @@
         const dataBoxY = 20;
         const dataBoxWidth = 180;
         const dataBoxHeight = 120;
-        
+
         // Data box background
         const dataBoxBg = document.createElementNS(xmlns, 'rect');
         dataBoxBg.setAttribute('x', dataBoxX);
@@ -570,11 +1008,11 @@
         dataBoxBg.setAttribute('stroke-width', '1');
         dataBoxBg.setAttribute('rx', '5');
         svg.appendChild(dataBoxBg);
-        
+
         // Calculate totals for data box
         const totalPvPower = state.solarAreas.reduce((sum, sa) => sum + (sa.modules * state.moduleConfig.wattage), 0);
         const totalInvPower = state.inverters.reduce((sum, inv) => sum + inv.ac_power_w, 0);
-        
+
         // Data box title
         const dataBoxTitle = document.createElementNS(xmlns, 'text');
         dataBoxTitle.setAttribute('x', dataBoxX + 10);
@@ -582,9 +1020,9 @@
         dataBoxTitle.setAttribute('font-family', 'Arial');
         dataBoxTitle.setAttribute('font-size', '11');
         dataBoxTitle.setAttribute('font-weight', 'bold');
-        dataBoxTitle.textContent = 'Anlagendaten:';
+        dataBoxTitle.textContent = 'Anlagedaten:';
         svg.appendChild(dataBoxTitle);
-        
+
         // PV-Generator gesamt
         const pvTotalLabel = document.createElementNS(xmlns, 'text');
         pvTotalLabel.setAttribute('x', dataBoxX + 10);
@@ -593,7 +1031,7 @@
         pvTotalLabel.setAttribute('font-size', '9');
         pvTotalLabel.textContent = 'PV-Generator gesamt:';
         svg.appendChild(pvTotalLabel);
-        
+
         const pvTotalValue = document.createElementNS(xmlns, 'text');
         pvTotalValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
         pvTotalValue.setAttribute('y', dataBoxY + 35);
@@ -603,7 +1041,7 @@
         pvTotalValue.setAttribute('font-weight', 'bold');
         pvTotalValue.textContent = `${(totalPvPower/1000).toFixed(2)} kWp`;
         svg.appendChild(pvTotalValue);
-        
+
         // Wechselrichter gesamt
         const invTotalLabel = document.createElementNS(xmlns, 'text');
         invTotalLabel.setAttribute('x', dataBoxX + 10);
@@ -612,7 +1050,7 @@
         invTotalLabel.setAttribute('font-size', '9');
         invTotalLabel.textContent = 'Wechselrichter gesamt:';
         svg.appendChild(invTotalLabel);
-        
+
         const invTotalValue = document.createElementNS(xmlns, 'text');
         invTotalValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
         invTotalValue.setAttribute('y', dataBoxY + 50);
@@ -622,7 +1060,7 @@
         invTotalValue.setAttribute('font-weight', 'bold');
         invTotalValue.textContent = `${(totalInvPower/1000).toFixed(2)} kW`;
         svg.appendChild(invTotalValue);
-        
+
         // Speicherkapazität (nur wenn Batterie vorhanden)
         if (state.battery) {
           const batCapLabel = document.createElementNS(xmlns, 'text');
@@ -632,7 +1070,7 @@
           batCapLabel.setAttribute('font-size', '9');
           batCapLabel.textContent = 'Speicherkapazität:';
           svg.appendChild(batCapLabel);
-          
+
           const batCapValue = document.createElementNS(xmlns, 'text');
           batCapValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
           batCapValue.setAttribute('y', dataBoxY + 65);
@@ -642,7 +1080,7 @@
           batCapValue.setAttribute('font-weight', 'bold');
           batCapValue.textContent = `${state.battery.kwh} kWh`;
           svg.appendChild(batCapValue);
-          
+
           // Max. Batterieleistung (nur wenn angegeben)
           if (state.battery.power_kw && state.battery.power_kw > 0) {
             const batPowerLabel = document.createElementNS(xmlns, 'text');
@@ -652,7 +1090,7 @@
             batPowerLabel.setAttribute('font-size', '9');
             batPowerLabel.textContent = 'Max. Batterieleistung:';
             svg.appendChild(batPowerLabel);
-            
+
             const batPowerValue = document.createElementNS(xmlns, 'text');
             batPowerValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
             batPowerValue.setAttribute('y', dataBoxY + 80);
@@ -664,11 +1102,11 @@
             svg.appendChild(batPowerValue);
           }
         }
-        
+
         // Leistungsverhältnis (falls beide Werte > 0)
         if (totalPvPower > 0 && totalInvPower > 0) {
           const ratioY = state.battery ? (state.battery.power_kw > 0 ? dataBoxY + 95 : dataBoxY + 80) : dataBoxY + 65;
-          
+
           const ratioLabel = document.createElementNS(xmlns, 'text');
           ratioLabel.setAttribute('x', dataBoxX + 10);
           ratioLabel.setAttribute('y', ratioY);
@@ -676,7 +1114,7 @@
           ratioLabel.setAttribute('font-size', '9');
           ratioLabel.textContent = 'Überdimensionierung:';
           svg.appendChild(ratioLabel);
-          
+
           const ratioValue = document.createElementNS(xmlns, 'text');
           ratioValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
           ratioValue.setAttribute('y', ratioY);
@@ -692,14 +1130,15 @@
         state.solarAreas.forEach((sa, index) => {
           const x = pvX;
           const y = startY + (index * verticalSpacing);
-          
+          const spdX = x + 60; // Position SPD to the right of PV module
+
           // PV symbol
           const pvGroup = document.createElementNS(xmlns, 'use');
           pvGroup.setAttribute('href', '#pv-module');
           pvGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#pv-module');
           pvGroup.setAttribute('transform', `translate(${x}, ${y})`);
           svg.appendChild(pvGroup);
-          
+
           // PV label
           const pvLabel = document.createElementNS(xmlns, 'text');
           pvLabel.setAttribute('x', x);
@@ -710,7 +1149,7 @@
           pvLabel.setAttribute('font-weight', 'bold');
           pvLabel.textContent = `${sa.name}`;
           svg.appendChild(pvLabel);
-          
+
           const pvPower = document.createElementNS(xmlns, 'text');
           pvPower.setAttribute('x', x);
           pvPower.setAttribute('y', y - 20);
@@ -720,20 +1159,49 @@
           pvPower.setAttribute('fill', '#222');
           pvPower.textContent = `${sa.modules} × ${state.moduleConfig.wattage}W = ${(sa.modules * state.moduleConfig.wattage / 1000).toFixed(2)} kWp`;
           svg.appendChild(pvPower);
+
+          // Line from PV to SPD
+          const pvToSpdLine = document.createElementNS(xmlns, 'line');
+          pvToSpdLine.setAttribute('x1', x + 25); // Right edge of PV module
+          pvToSpdLine.setAttribute('y1', y);
+          pvToSpdLine.setAttribute('x2', spdX - 8); // Left edge of SPD
+          pvToSpdLine.setAttribute('y2', y);
+          pvToSpdLine.setAttribute('stroke', '#000');
+          pvToSpdLine.setAttribute('stroke-width', '2');
+          pvToSpdLine.setAttribute('stroke-dasharray', '5,5');
+          svg.appendChild(pvToSpdLine);
+
+          // Surge protector symbol
+          const spdGroup = document.createElementNS(xmlns, 'use');
+          spdGroup.setAttribute('href', '#surge-protector');
+          spdGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#surge-protector');
+          spdGroup.setAttribute('transform', `translate(${spdX}, ${y}) rotate(90)`);
+          svg.appendChild(spdGroup);
+
+          // SPD label
+          const spdLabel = document.createElementNS(xmlns, 'text');
+          spdLabel.setAttribute('x', spdX);
+          spdLabel.setAttribute('y', y - 15);
+          spdLabel.setAttribute('text-anchor', 'middle');
+          spdLabel.setAttribute('font-family', 'Arial');
+          spdLabel.setAttribute('font-size', '7');
+          spdLabel.setAttribute('fill', '#222');
+          spdLabel.textContent = 'SPD';
+          svg.appendChild(spdLabel);
         });
 
         // Draw inverters - positioned at the center of their assigned PV modules
         state.inverters.forEach((inv, index) => {
           const x = invX;
-          
+
           // Calculate the center Y position of assigned PV modules
           let invY;
           if (inv.assignedSolarAreaIds.length > 0) {
             // Find indices of assigned PV modules
-            const assignedIndices = inv.assignedSolarAreaIds.map(saId => 
+            const assignedIndices = inv.assignedSolarAreaIds.map(saId =>
               state.solarAreas.findIndex(sa => sa.id === saId)
             ).filter(idx => idx !== -1);
-            
+
             if (assignedIndices.length > 0) {
               // Calculate center position
               const minIndex = Math.min(...assignedIndices);
@@ -748,13 +1216,13 @@
             // No assigned PV modules: use sequential positioning
             invY = startY + (index * verticalSpacing);
           }
-          
+
           const invGroup = document.createElementNS(xmlns, 'use');
           invGroup.setAttribute('href', '#inverter');
           invGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#inverter');
           invGroup.setAttribute('transform', `translate(${x}, ${invY})`);
           svg.appendChild(invGroup);
-          
+
           const invLabel = document.createElementNS(xmlns, 'text');
           invLabel.setAttribute('x', x);
           invLabel.setAttribute('y', invY - 40);
@@ -778,16 +1246,17 @@
           // Store inverter position for later use
           inv._layoutY = invY;
 
-          // Draw connections from PV to inverter
+          // Draw connections from SPD to inverter
           inv.assignedSolarAreaIds.forEach(saId => {
             const saIndex = state.solarAreas.findIndex(sa => sa.id === saId);
             if (saIndex !== -1) {
               const saX = pvX;
               const saY = startY + (saIndex * verticalSpacing);
-              
-              // DC connection line (horizontal from PV to inverter)
+              const spdX = saX + 60; // SPD position
+
+              // DC connection line (horizontal from SPD to inverter)
               const dcLine = document.createElementNS(xmlns, 'line');
-              dcLine.setAttribute('x1', saX + 25); // Right edge of PV module
+              dcLine.setAttribute('x1', spdX + 8); // Right edge of SPD
               dcLine.setAttribute('y1', saY);
               dcLine.setAttribute('x2', x - 30); // Left edge of inverter
               dcLine.setAttribute('y2', invY);
@@ -804,11 +1273,11 @@
         const busLineY = Math.max(startY + (state.inverters.length * verticalSpacing), startY + 120); // Position below all inverters
         const meterY = busLineY; // Meter at same height as bus line
         const gridY = busLineY; // Grid connection at same height as bus line
-        
+
         // Draw main AC bus line (Sammelschiene) to meter - parallel connection
-        const busStartX = invX + 60; // Start to the right of inverters
+        const busStartX = invX + 115; // Start even further to the right to accommodate moved LS
         const busEndX = meterX - 30;
-        
+
         const mainBusLine = document.createElementNS(xmlns, 'line');
         mainBusLine.setAttribute('x1', busStartX);
         mainBusLine.setAttribute('y1', busLineY);
@@ -818,21 +1287,77 @@
         mainBusLine.setAttribute('stroke-width', '4');
         svg.appendChild(mainBusLine);
 
-        // Connect each inverter to the bus line (parallel connection)
+        // Connect each inverter to the bus line (parallel connection) with circuit breakers
         state.inverters.forEach((inv, index) => {
           const x = invX;
           const y = inv._layoutY; // Use the calculated center position
-          
-          // Horizontal line from inverter to vertical collector, then down to bus
-          const invToBusLineHorizontal = document.createElementNS(xmlns, 'line');
-          invToBusLineHorizontal.setAttribute('x1', x + 30); // Right edge of inverter
-          invToBusLineHorizontal.setAttribute('y1', y);
-          invToBusLineHorizontal.setAttribute('x2', busStartX);
-          invToBusLineHorizontal.setAttribute('y2', y);
-          invToBusLineHorizontal.setAttribute('stroke', '#000');
-          invToBusLineHorizontal.setAttribute('stroke-width', '3');
-          svg.appendChild(invToBusLineHorizontal);
-          
+          const lsX = x + 90; // Position LS even further to the right for better spacing
+
+          // Use configured values or calculate as fallback
+          const nominalCurrent = inv.ls_amps || calculateNominalCurrent(inv.ac_power_w, inv.phases);
+          const cableSize = inv.cable_size || calculateCableSizeFromLsCurrent(nominalCurrent);
+
+          // Line from inverter to circuit breaker
+          const invToLsLine = document.createElementNS(xmlns, 'line');
+          invToLsLine.setAttribute('x1', x + 30); // Right edge of inverter
+          invToLsLine.setAttribute('y1', y);
+          invToLsLine.setAttribute('x2', lsX - 10); // Left edge of LS
+          invToLsLine.setAttribute('y2', y);
+          invToLsLine.setAttribute('stroke', '#000');
+          invToLsLine.setAttribute('stroke-width', '3');
+          svg.appendChild(invToLsLine);
+
+          // Cable cross-section label (between inverter and LS)
+          const cableLabel = document.createElementNS(xmlns, 'text');
+          cableLabel.setAttribute('x', x + 60); // Adjusted position for new LS location
+          cableLabel.setAttribute('y', y - 8);
+          cableLabel.setAttribute('text-anchor', 'middle');
+          cableLabel.setAttribute('font-family', 'Arial');
+          cableLabel.setAttribute('font-size', '8');
+          cableLabel.setAttribute('fill', '#222');
+          cableLabel.textContent = `${cableSize}mm²`;
+          svg.appendChild(cableLabel);
+
+          // Circuit breaker symbol
+          const lsGroup = document.createElementNS(xmlns, 'use');
+          lsGroup.setAttribute('href', '#circuit-breaker');
+          lsGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#circuit-breaker');
+          lsGroup.setAttribute('transform', `translate(${lsX}, ${y}) rotate(90)`);
+          svg.appendChild(lsGroup);
+
+          // LS label (text "LS")
+          const lsLabel = document.createElementNS(xmlns, 'text');
+          lsLabel.setAttribute('x', lsX);
+          lsLabel.setAttribute('y', y - 20);
+          lsLabel.setAttribute('text-anchor', 'middle');
+          lsLabel.setAttribute('font-family', 'Arial');
+          lsLabel.setAttribute('font-size', '9');
+          lsLabel.setAttribute('fill', '#000');
+          lsLabel.setAttribute('font-weight', 'bold');
+          lsLabel.textContent = 'LS';
+          svg.appendChild(lsLabel);
+
+          // Circuit breaker label (nominal current)
+          const lsInfo = document.createElementNS(xmlns, 'text');
+          lsInfo.setAttribute('x', lsX);
+          lsInfo.setAttribute('y', y - 12);
+          lsInfo.setAttribute('text-anchor', 'middle');
+          lsInfo.setAttribute('font-family', 'Arial');
+          lsInfo.setAttribute('font-size', '8');
+          lsInfo.setAttribute('fill', '#222');
+          lsInfo.textContent = `${nominalCurrent}A`;
+          svg.appendChild(lsInfo);
+
+          // Line from circuit breaker to bus collector
+          const lsToBusLine = document.createElementNS(xmlns, 'line');
+          lsToBusLine.setAttribute('x1', lsX + 10); // Right edge of LS
+          lsToBusLine.setAttribute('y1', y);
+          lsToBusLine.setAttribute('x2', busStartX); // Connect to bus line start
+          lsToBusLine.setAttribute('y2', y);
+          lsToBusLine.setAttribute('stroke', '#000');
+          lsToBusLine.setAttribute('stroke-width', '3');
+          svg.appendChild(lsToBusLine);
+
           // Vertical line from horizontal line to bus
           const invToBusLineVertical = document.createElementNS(xmlns, 'line');
           invToBusLineVertical.setAttribute('x1', busStartX);
@@ -842,7 +1367,7 @@
           invToBusLineVertical.setAttribute('stroke', '#000');
           invToBusLineVertical.setAttribute('stroke-width', '3');
           svg.appendChild(invToBusLineVertical);
-          
+
           // Junction point on bus line
           const junctionPoint = document.createElementNS(xmlns, 'circle');
           junctionPoint.setAttribute('cx', busStartX);
@@ -873,13 +1398,13 @@
               // Position battery above the first PV module on the left side
               const batX = pvX; // Same X position as PV modules
               const batY = startY - 80; // Above the first PV module
-              
+
               const batGroup = document.createElementNS(xmlns, 'use');
               batGroup.setAttribute('href', '#battery');
               batGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#battery');
               batGroup.setAttribute('transform', `translate(${batX}, ${batY})`);
               svg.appendChild(batGroup);
-              
+
               const batLabel = document.createElementNS(xmlns, 'text');
               batLabel.setAttribute('x', batX);
               batLabel.setAttribute('y', batY - 35);
@@ -889,7 +1414,7 @@
               batLabel.setAttribute('font-weight', 'bold');
               batLabel.textContent = state.battery.name;
               svg.appendChild(batLabel);
-              
+
               const batInfo = document.createElementNS(xmlns, 'text');
               batInfo.setAttribute('x', batX);
               batInfo.setAttribute('y', batY - 25);
@@ -899,7 +1424,7 @@
               batInfo.setAttribute('fill', '#222');
               batInfo.textContent = `${state.battery.kwh} kWh | ${state.battery.power_kw ? state.battery.power_kw + ' kW DC' : ''}`;
               svg.appendChild(batInfo);
-              
+
               // L-shaped connection from battery (top-left) to inverter
               // Horizontal line from battery to the right
               const batLineHorizontal = document.createElementNS(xmlns, 'line');
@@ -911,7 +1436,7 @@
               batLineHorizontal.setAttribute('stroke-width', '2');
               batLineHorizontal.setAttribute('stroke-dasharray', '5,5');
               svg.appendChild(batLineHorizontal);
-              
+
               // Vertical line down to inverter level
               const batLineVertical = document.createElementNS(xmlns, 'line');
               batLineVertical.setAttribute('x1', assignedInvX - 50);
@@ -922,7 +1447,7 @@
               batLineVertical.setAttribute('stroke-width', '2');
               batLineVertical.setAttribute('stroke-dasharray', '5,5');
               svg.appendChild(batLineVertical);
-              
+
               // Final horizontal line to inverter
               const batLineToInv = document.createElementNS(xmlns, 'line');
               batLineToInv.setAttribute('x1', assignedInvX - 50);
@@ -933,7 +1458,7 @@
               batLineToInv.setAttribute('stroke-width', '2');
               batLineToInv.setAttribute('stroke-dasharray', '5,5');
               svg.appendChild(batLineToInv);
-              
+
               // Junction points
               const batJunction1 = document.createElementNS(xmlns, 'circle');
               batJunction1.setAttribute('cx', assignedInvX - 50);
@@ -941,7 +1466,7 @@
               batJunction1.setAttribute('r', '2');
               batJunction1.setAttribute('fill', '#000');
               svg.appendChild(batJunction1);
-              
+
               const batJunction2 = document.createElementNS(xmlns, 'circle');
               batJunction2.setAttribute('cx', assignedInvX - 50);
               batJunction2.setAttribute('cy', assignedInvY);
@@ -953,9 +1478,9 @@
         }
 
         // Draw meter
-  const meterGroup = document.createElementNS(xmlns, 'use');
-  meterGroup.setAttribute('href', '#meter');
-  meterGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#meter');
+        const meterGroup = document.createElementNS(xmlns, 'use');
+        meterGroup.setAttribute('href', '#meter');
+        meterGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#meter');
         meterGroup.setAttribute('transform', `translate(${meterX}, ${meterY})`);
         svg.appendChild(meterGroup);
         
@@ -967,11 +1492,9 @@
         meterLabel.setAttribute('font-size', '10');
         meterLabel.setAttribute('font-weight', 'bold');
         meterLabel.textContent = 'Zweirichtungszähler';
-        svg.appendChild(meterLabel);
+        svg.appendChild(meterLabel);        // Draw load connection (Hauslast) - branch from AC bus line
+        const loadBranchX = busEndX - 160; // Position on the bus line
 
-        // Draw load connection (Hauslast) - branch from AC bus line
-        const loadBranchX = busEndX - 80; // Position on the bus line
-        
         // Junction point on bus line for load
         const loadJunctionPoint = document.createElementNS(xmlns, 'circle');
         loadJunctionPoint.setAttribute('cx', loadBranchX);
@@ -979,7 +1502,7 @@
         loadJunctionPoint.setAttribute('r', '3');
         loadJunctionPoint.setAttribute('fill', '#000');
         svg.appendChild(loadJunctionPoint);
-        
+
         // Line down from bus line to load
         const loadToBusLine = document.createElementNS(xmlns, 'line');
         loadToBusLine.setAttribute('x1', loadBranchX);
@@ -1027,16 +1550,97 @@
         loadLabel.setAttribute('font-family', 'Arial');
         loadLabel.setAttribute('font-size', '10');
         loadLabel.setAttribute('font-weight', 'bold');
-        loadLabel.textContent = 'Hauslast';
+        loadLabel.textContent = 'Haus';
         svg.appendChild(loadLabel);
 
+        // Draw SPD Type 2 on AC busbar (behind load and meters)
+        const spdType2X = busEndX - 70; // Position on the bus line (right of load)
+        
+        // SPD Type 2 junction point on busbar
+        const spdType2JunctionPoint = document.createElementNS(xmlns, 'circle');
+        spdType2JunctionPoint.setAttribute('cx', spdType2X);
+        spdType2JunctionPoint.setAttribute('cy', busLineY);
+        spdType2JunctionPoint.setAttribute('r', '2');
+        spdType2JunctionPoint.setAttribute('fill', '#000');
+        svg.appendChild(spdType2JunctionPoint);
+
+        // SPD Type 2 vertical line from busbar
+        const spdType2ToBusLine = document.createElementNS(xmlns, 'line');
+        spdType2ToBusLine.setAttribute('x1', spdType2X);
+        spdType2ToBusLine.setAttribute('y1', busLineY);
+        spdType2ToBusLine.setAttribute('x2', spdType2X);
+        spdType2ToBusLine.setAttribute('y2', busLineY + 40);
+        spdType2ToBusLine.setAttribute('stroke', '#000');
+        spdType2ToBusLine.setAttribute('stroke-width', '2');
+        svg.appendChild(spdType2ToBusLine);
+
+        // SPD Type 2 rectangle box
+        const spdType2Box = document.createElementNS(xmlns, 'rect');
+        spdType2Box.setAttribute('x', spdType2X - 12);
+        spdType2Box.setAttribute('y', busLineY + 40);
+        spdType2Box.setAttribute('width', '24');
+        spdType2Box.setAttribute('height', '30');
+        spdType2Box.setAttribute('fill', 'none');
+        spdType2Box.setAttribute('stroke', '#000');
+        spdType2Box.setAttribute('stroke-width', '2');
+        svg.appendChild(spdType2Box);
+
+        // SPD Type 2 internal arrow symbol (up)
+        const spdType2Arrow1 = document.createElementNS(xmlns, 'path');
+        spdType2Arrow1.setAttribute('d', `M ${spdType2X - 6} ${busLineY + 50} L ${spdType2X - 3} ${busLineY + 47} L ${spdType2X} ${busLineY + 50}`);
+        spdType2Arrow1.setAttribute('fill', 'none');
+        spdType2Arrow1.setAttribute('stroke', '#000');
+        spdType2Arrow1.setAttribute('stroke-width', '1');
+        svg.appendChild(spdType2Arrow1);
+
+        // SPD Type 2 internal arrow symbol (down)
+        const spdType2Arrow2 = document.createElementNS(xmlns, 'path');
+        spdType2Arrow2.setAttribute('d', `M ${spdType2X} ${busLineY + 60} L ${spdType2X + 3} ${busLineY + 63} L ${spdType2X + 6} ${busLineY + 60}`);
+        spdType2Arrow2.setAttribute('fill', 'none');
+        spdType2Arrow2.setAttribute('stroke', '#000');
+        spdType2Arrow2.setAttribute('stroke-width', '1');
+        svg.appendChild(spdType2Arrow2);
+
+        // SPD Type 2 ground connection line
+        const spdType2GroundLine = document.createElementNS(xmlns, 'line');
+        spdType2GroundLine.setAttribute('x1', spdType2X);
+        spdType2GroundLine.setAttribute('y1', busLineY + 70);
+        spdType2GroundLine.setAttribute('x2', spdType2X);
+        spdType2GroundLine.setAttribute('y2', busLineY + 85);
+        spdType2GroundLine.setAttribute('stroke', '#000');
+        spdType2GroundLine.setAttribute('stroke-width', '2');
+        svg.appendChild(spdType2GroundLine);
+
+        // SPD Type 2 ground symbol (three horizontal lines)
+        for (let i = 0; i < 3; i++) {
+          const groundLine = document.createElementNS(xmlns, 'line');
+          groundLine.setAttribute('x1', spdType2X - (6 - i * 2));
+          groundLine.setAttribute('y1', busLineY + 85 + i * 3);
+          groundLine.setAttribute('x2', spdType2X + (6 - i * 2));
+          groundLine.setAttribute('y2', busLineY + 85 + i * 3);
+          groundLine.setAttribute('stroke', '#000');
+          groundLine.setAttribute('stroke-width', '1');
+          svg.appendChild(groundLine);
+        }
+
+        // SPD Type 2 label
+        const spdType2Label = document.createElementNS(xmlns, 'text');
+        spdType2Label.setAttribute('x', spdType2X + 18);
+        spdType2Label.setAttribute('y', busLineY + 55);
+        spdType2Label.setAttribute('text-anchor', 'start');
+        spdType2Label.setAttribute('font-family', 'Arial');
+        spdType2Label.setAttribute('font-size', '9');
+        spdType2Label.setAttribute('font-weight', 'bold');
+        spdType2Label.textContent = 'SPD Typ2';
+        svg.appendChild(spdType2Label);
+
         // Draw grid connection
-  const gridGroup = document.createElementNS(xmlns, 'use');
-  gridGroup.setAttribute('href', '#grid');
-  gridGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#grid');
+        const gridGroup = document.createElementNS(xmlns, 'use');
+        gridGroup.setAttribute('href', '#grid');
+        gridGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#grid');
         gridGroup.setAttribute('transform', `translate(${gridX}, ${gridY})`);
         svg.appendChild(gridGroup);
-        
+
         const gridLabel = document.createElementNS(xmlns, 'text');
         gridLabel.setAttribute('x', gridX);
         gridLabel.setAttribute('y', gridY + 40);
@@ -1047,19 +1651,86 @@
         gridLabel.textContent = 'Netzanschluss';
         svg.appendChild(gridLabel);
 
-        // Connection meter to grid
-        const gridLine = document.createElementNS(xmlns, 'line');
-        gridLine.setAttribute('x1', meterX + 25);
-        gridLine.setAttribute('y1', meterY);
-        gridLine.setAttribute('x2', gridX - 25);
-        gridLine.setAttribute('y2', gridY);
-        gridLine.setAttribute('stroke', '#000');
-        gridLine.setAttribute('stroke-width', '3');
-        svg.appendChild(gridLine);
+        const gridInfo = document.createElementNS(xmlns, 'text');
+        gridInfo.setAttribute('x', gridX);
+        gridInfo.setAttribute('y', gridY + 55);
+        gridInfo.setAttribute('text-anchor', 'middle');
+        gridInfo.setAttribute('font-family', 'Arial');
+        gridInfo.setAttribute('font-size', '8');
+        gridInfo.setAttribute('fill', '#222');
+        gridInfo.textContent = ''; // 'TN-C-S | 3~400/230V'; // feste Netzform erstmal
+        svg.appendChild(gridInfo);
 
-        // Add HAK (Hauptanschlusskasten) symbol
+        // Connection from SPD Kombi to SLS
+        const spdKombiToSlsLine = document.createElementNS(xmlns, 'line');
+        spdKombiToSlsLine.setAttribute('x1', spdKombiX + 12);
+        spdKombiToSlsLine.setAttribute('y1', meterY);
+        spdKombiToSlsLine.setAttribute('x2', slsX - 12);
+        spdKombiToSlsLine.setAttribute('y2', meterY);
+        spdKombiToSlsLine.setAttribute('stroke', '#000');
+        spdKombiToSlsLine.setAttribute('stroke-width', '3');
+        svg.appendChild(spdKombiToSlsLine);
+
+        // Add SLS 35A symbol
+        const slsGroup = document.createElementNS(xmlns, 'use');
+        slsGroup.setAttribute('href', '#selective-circuit-breaker');
+        slsGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#selective-circuit-breaker');
+        slsGroup.setAttribute('transform', `translate(${slsX}, ${meterY}) rotate(90)`);
+        svg.appendChild(slsGroup);
+
+        const slsLabel = document.createElementNS(xmlns, 'text');
+        slsLabel.setAttribute('x', slsX);
+        slsLabel.setAttribute('y', meterY - 26);
+        slsLabel.setAttribute('text-anchor', 'middle');
+        slsLabel.setAttribute('font-family', 'Arial');
+        slsLabel.setAttribute('font-size', '9');
+        slsLabel.setAttribute('font-weight', 'bold');
+        slsLabel.textContent = 'SLS';
+        svg.appendChild(slsLabel);
+
+        const slsInfo = document.createElementNS(xmlns, 'text');
+        slsInfo.setAttribute('x', slsX);
+        slsInfo.setAttribute('y', meterY - 16);
+        slsInfo.setAttribute('text-anchor', 'middle');
+        slsInfo.setAttribute('font-family', 'Arial');
+        slsInfo.setAttribute('font-size', '8');
+        slsInfo.setAttribute('fill', '#222');
+        slsInfo.textContent = '35A';
+        svg.appendChild(slsInfo);
+
+        // Connection from SLS to HAK
+        const slsToHakLine = document.createElementNS(xmlns, 'line');
+        slsToHakLine.setAttribute('x1', slsX + 12);
+        slsToHakLine.setAttribute('y1', meterY);
+        slsToHakLine.setAttribute('x2', hakX - 15);
+        slsToHakLine.setAttribute('y2', meterY);
+        slsToHakLine.setAttribute('stroke', '#000');
+        slsToHakLine.setAttribute('stroke-width', '3');
+        svg.appendChild(slsToHakLine);
+
+        // Connection from HAK to grid
+        const hakToGridLine = document.createElementNS(xmlns, 'line');
+        hakToGridLine.setAttribute('x1', hakX + 15);
+        hakToGridLine.setAttribute('y1', meterY);
+        hakToGridLine.setAttribute('x2', gridX - 25);
+        hakToGridLine.setAttribute('y2', gridY);
+        hakToGridLine.setAttribute('stroke', '#000');
+        hakToGridLine.setAttribute('stroke-width', '3');
+        svg.appendChild(hakToGridLine);
+
+        // Connection from meter to SPD Kombi
+        const meterToSpdKombiLine = document.createElementNS(xmlns, 'line');
+        meterToSpdKombiLine.setAttribute('x1', meterX + 25);
+        meterToSpdKombiLine.setAttribute('y1', meterY);
+        meterToSpdKombiLine.setAttribute('x2', spdKombiX - 12);
+        meterToSpdKombiLine.setAttribute('y2', meterY);
+        meterToSpdKombiLine.setAttribute('stroke', '#000');
+        meterToSpdKombiLine.setAttribute('stroke-width', '3');
+        svg.appendChild(meterToSpdKombiLine);
+
+        // Add HAK (Hauptanschlusskasten) symbol at new position
         const hakSymbol = document.createElementNS(xmlns, 'rect');
-        hakSymbol.setAttribute('x', meterX + 35);
+        hakSymbol.setAttribute('x', hakX - 15);
         hakSymbol.setAttribute('y', meterY - 15);
         hakSymbol.setAttribute('width', '30');
         hakSymbol.setAttribute('height', '30');
@@ -1067,37 +1738,37 @@
         hakSymbol.setAttribute('stroke', '#000');
         hakSymbol.setAttribute('stroke-width', '2');
         svg.appendChild(hakSymbol);
-        
+
         // HAK internal structure (simplified)
         const hakLine1 = document.createElementNS(xmlns, 'line');
-        hakLine1.setAttribute('x1', meterX + 40);
+        hakLine1.setAttribute('x1', hakX - 10);
         hakLine1.setAttribute('y1', meterY - 10);
-        hakLine1.setAttribute('x2', meterX + 60);
+        hakLine1.setAttribute('x2', hakX + 10);
         hakLine1.setAttribute('y2', meterY - 10);
         hakLine1.setAttribute('stroke', '#000');
         hakLine1.setAttribute('stroke-width', '1');
         svg.appendChild(hakLine1);
-        
+
         const hakLine2 = document.createElementNS(xmlns, 'line');
-        hakLine2.setAttribute('x1', meterX + 40);
+        hakLine2.setAttribute('x1', hakX - 10);
         hakLine2.setAttribute('y1', meterY);
-        hakLine2.setAttribute('x2', meterX + 60);
+        hakLine2.setAttribute('x2', hakX + 10);
         hakLine2.setAttribute('y2', meterY);
         hakLine2.setAttribute('stroke', '#000');
         hakLine2.setAttribute('stroke-width', '1');
         svg.appendChild(hakLine2);
-        
+
         const hakLine3 = document.createElementNS(xmlns, 'line');
-        hakLine3.setAttribute('x1', meterX + 40);
+        hakLine3.setAttribute('x1', hakX - 10);
         hakLine3.setAttribute('y1', meterY + 10);
-        hakLine3.setAttribute('x2', meterX + 60);
+        hakLine3.setAttribute('x2', hakX + 10);
         hakLine3.setAttribute('y2', meterY + 10);
         hakLine3.setAttribute('stroke', '#000');
         hakLine3.setAttribute('stroke-width', '1');
         svg.appendChild(hakLine3);
-        
+
         const hakLabel = document.createElementNS(xmlns, 'text');
-        hakLabel.setAttribute('x', meterX + 50);
+        hakLabel.setAttribute('x', hakX);
         hakLabel.setAttribute('y', meterY - 20);
         hakLabel.setAttribute('text-anchor', 'middle');
         hakLabel.setAttribute('font-family', 'Arial');
@@ -1106,22 +1777,94 @@
         hakLabel.textContent = 'HAK';
         svg.appendChild(hakLabel);
 
+        // Add SPD Kombi symbol
+        const spdKombiGroup = document.createElementNS(xmlns, 'use');
+        spdKombiGroup.setAttribute('href', '#surge-protector-kombi');
+        spdKombiGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#surge-protector-kombi');
+        spdKombiGroup.setAttribute('transform', `translate(${spdKombiX}, ${meterY}) rotate(90)`);
+        svg.appendChild(spdKombiGroup);
+
+        const spdKombiLabel = document.createElementNS(xmlns, 'text');
+        spdKombiLabel.setAttribute('x', spdKombiX);
+        spdKombiLabel.setAttribute('y', meterY - 20);
+        spdKombiLabel.setAttribute('text-anchor', 'middle');
+        spdKombiLabel.setAttribute('font-family', 'Arial');
+        spdKombiLabel.setAttribute('font-size', '9');
+        spdKombiLabel.setAttribute('font-weight', 'bold');
+        spdKombiLabel.textContent = 'SPD Kombi';
+        svg.appendChild(spdKombiLabel);
+
+        notes = [
+          'Alle PV-Strings lassen sich an den Wechselrichteren abschalten (DC-Trennvorrichtung)',
+          'Der Akkuspeicher und der Wechselrichter haben eine DC-Trennvorrichtung',
+          'Solarkabel H1Z2Z2-K 6 mm²',
+          'NA-Schutz nach VDE-AR-N 4105 integriert in Wechselrichtern',
+          'Alle metallischen PV-Komponenten und SPDs sind mit dem HPA verbunden'
+        ]
+        let yNotes = height - ((notes.length + 1) * 15);
+        // Fußnote für Hinweise
+        const footnoteTitle = document.createElementNS(xmlns, 'text');
+        footnoteTitle.setAttribute('x', '620');
+        footnoteTitle.setAttribute('y', yNotes);
+        footnoteTitle.setAttribute('font-family', 'Arial');
+        footnoteTitle.setAttribute('font-size', '10');
+        footnoteTitle.setAttribute('font-weight', 'bold');
+        footnoteTitle.textContent = 'Hinweise:';
+        svg.appendChild(footnoteTitle);
+
+        for (let i = 0; i < notes.length; i++) {
+          const noteText = document.createElementNS(xmlns, 'text');
+          noteText.setAttribute('x', '620');
+          noteText.setAttribute('y', yNotes + 15 * (i + 1));
+          noteText.setAttribute('font-family', 'Arial');
+          noteText.setAttribute('font-size', '9');
+          noteText.textContent = `• ${notes[i]}`;
+          svg.appendChild(noteText);
+        }
+
+        legend = [
+          'HAK: Hauptanschlusskasten',
+          'LS: Leitungsschutzschalter',
+          'SPD: Überspannungsschutzgerät',
+          'SLS: Selektiver Leitungsschutzschalter'
+        ]
+        let yLegend = 530;
+        let xLegend = 830;
+        // Fußnote für Legende
+        const legendTitle = document.createElementNS(xmlns, 'text');
+        legendTitle.setAttribute('x', xLegend);
+        legendTitle.setAttribute('y', yLegend);
+        legendTitle.setAttribute('font-family', 'Arial');
+        legendTitle.setAttribute('font-size', '10');
+        legendTitle.setAttribute('font-weight', 'bold');
+        legendTitle.textContent = 'Legende:';
+        svg.appendChild(legendTitle);
+
+        for (let i = 0; i < legend.length; i++) {
+          const legendText = document.createElementNS(xmlns, 'text');
+          legendText.setAttribute('x', xLegend);
+          legendText.setAttribute('y', yLegend + 15 * (i + 1));
+          legendText.setAttribute('font-family', 'Arial');
+          legendText.setAttribute('font-size', '9');
+          legendText.textContent = `• ${legend[i]}`;
+          svg.appendChild(legendText);
+        }
         return svg;
       }
 
       async function renderPreview(){
         if(state.solarAreas.length===0 && state.inverters.length===0){ alert('Füge mindestens eine Solarfläche oder einen Wechselrichter hinzu.'); return; }
-        
+
         try{
           // Generate professional electrical schematic
           const svg = buildProfessionalSVG();
-          
+
           // put svg into preview
-          const wrap = $('svgWrap'); 
+          const wrap = $('svgWrap');
           wrap.innerHTML = '';
           wrap.appendChild(svg);
-        }catch(err){ 
-          alert('Fehler bei Schaltplan-Generierung: '+err.message); 
+        }catch(err){
+          alert('Fehler bei Schaltplan-Generierung: '+err.message);
           console.error(err);
         }
       }
@@ -1138,7 +1881,7 @@
         try{
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-          
+
           // A4 landscape dimensions in mm
           const pageWidth = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
@@ -1214,10 +1957,10 @@
           if(tempContainer && tempContainer.parentNode){
             tempContainer.parentNode.removeChild(tempContainer);
           }
-          
+
           pdf.save((state.projectName || 'pv-schaltplan') + '_professionell.pdf');
-        }catch(err){ 
-          alert('PDF Export fehlgeschlagen: '+err.message); 
+        }catch(err){
+          alert('PDF Export fehlgeschlagen: '+err.message);
           console.error(err);
         }
       });
@@ -1226,6 +1969,9 @@
       $('moduleInfo').value = state.moduleConfig.info;
       $('moduleWattage').value = state.moduleConfig.wattage;
       renderLists();
+
+      // Set initial LS and cable suggestions
+      updateLsSuggestion();
 
     })();
   </script>
