@@ -1801,6 +1801,7 @@
           'NA-Schutz nach VDE-AR-N 4105 integriert in Wechselrichtern',
           'Alle metallischen PV-Komponenten und SPDs sind mit dem HPA verbunden'
         ]
+        notes.unshift(`Modulbezeichnung: ${state.moduleConfig.info}`);
         let yNotes = height - ((notes.length + 1) * 15);
         // Fußnote für Hinweise
         const footnoteTitle = document.createElementNS(xmlns, 'text');
@@ -1826,9 +1827,10 @@
           'HAK: Hauptanschlusskasten',
           'LS: Leitungsschutzschalter',
           'SPD: Überspannungsschutzgerät',
-          'SLS: Selektiver Leitungsschutzschalter'
+          'SLS: Selektiver Leitungsschutzschalter',
+          'HPA: Hauptpotentialausgleich'
         ]
-        let yLegend = 530;
+        let yLegend = 510;
         let xLegend = 830;
         // Fußnote für Legende
         const legendTitle = document.createElementNS(xmlns, 'text');
