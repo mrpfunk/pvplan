@@ -90,6 +90,10 @@
       <input id="invCableSize" type="number" min="1.5" max="50" step="0.5" value="4" />
       <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
     </label>
+    <label style="display:flex;align-items:center;margin-top:12px;">
+      <input id="invEmergencyPower" type="checkbox" style="width:auto;margin-right:8px;margin-top:0;" />
+      Notstrom-Funktionalität
+    </label>
     <label>Solarflächen zuordnen (STRG/SHIFT für mehrere)
       <select id="invAssign" multiple style="height:120px"></select>
     </label>
@@ -98,7 +102,7 @@
       <button id="clearInv" class="danger">Alle Wechselrichter löschen</button>
     </div>
     <div class="list">
-      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>LS[A]</th><th>Kabel[mm²]</th><th>Flächen</th></tr></thead><tbody></tbody></table>
+      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>LS[A]</th><th>Kabel[mm²]</th><th>Notstrom</th><th>Flächen</th></tr></thead><tbody></tbody></table>
     </div>
     <hr />
     <h2>Batterie</h2>
@@ -308,7 +312,8 @@
         invTable.innerHTML=''; batAssign.innerHTML=''; batAssign.appendChild(new Option('-- keiner --',''));
         state.inverters.forEach(inv=>{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.ls_amps || 'N/A'}A</td><td>${inv.cable_size || 'N/A'}mm²</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
+          const emergencyText = inv.emergencyPower ? 'Ja' : 'Nein';
+          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.ls_amps || 'N/A'}A</td><td>${inv.cable_size || 'N/A'}mm²</td><td>${emergencyText}</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
           invTable.appendChild(tr);
           batAssign.appendChild(new Option(`${inv.name} (${inv.id})`, inv.id));
         });
@@ -333,7 +338,8 @@
       }
 
       function updateMetaBox(){
-        $('metaBox').innerHTML = `<strong>${state.projectName}</strong><br>PV-Flächen: ${state.solarAreas.length} | Wechselrichter: ${state.inverters.length} | Batterie: ${state.battery? 'ja':'nein'}`;
+        const hasEmergencyPower = state.inverters.some(inv => inv.emergencyPower);
+        $('metaBox').innerHTML = `<strong>${state.projectName}</strong><br>PV-Flächen: ${state.solarAreas.length} | Wechselrichter: ${state.inverters.length} | Batterie: ${state.battery? 'ja':'nein'} | Notstrom: ${hasEmergencyPower ? 'ja' : 'nein'}`;
       }
 
       // add solar area
@@ -356,10 +362,11 @@
         const ac_power_w = parseFloat($('invAcW').value)||0;
         const ls_amps = parseInt($('invLsAmps').value)||25;
         const cable_size = parseFloat($('invCableSize').value)||4;
+        const emergencyPower = $('invEmergencyPower').checked || false;
         const assigned = Array.from($('invAssign').selectedOptions).map(o=>o.value);
         const id = 'INV'+uid();
-        state.inverters.push({id,name,phases,ac_power_w,ls_amps,cable_size,assignedSolarAreaIds:assigned,assignedBatteryId:null});
-        $('invName').value=''; $('invAcW').value=5000; $('invLsAmps').value=25; $('invCableSize').value=4; $('invAssign').selectedIndex=-1;
+        state.inverters.push({id,name,phases,ac_power_w,ls_amps,cable_size,emergencyPower,assignedSolarAreaIds:assigned,assignedBatteryId:null});
+        $('invName').value=''; $('invAcW').value=5000; $('invLsAmps').value=25; $('invCableSize').value=4; $('invEmergencyPower').checked=false; $('invAssign').selectedIndex=-1;
         renderLists();
       });
 
@@ -925,6 +932,7 @@
         }
 
         // Leistungsverhältnis (falls beide Werte > 0)
+        let nextY = dataBoxY + 65; // Startwert für die nächste Y-Position
         if (totalPvPower > 0 && totalInvPower > 0) {
           const ratioY = state.battery ? (state.battery.power_kw > 0 ? dataBoxY + 95 : dataBoxY + 80) : dataBoxY + 65;
 
@@ -945,7 +953,31 @@
           ratioValue.setAttribute('font-weight', 'bold');
           ratioValue.textContent = `${(totalPvPower/totalInvPower).toFixed(2)}`;
           svg.appendChild(ratioValue);
+
+          nextY = ratioY + 15; // Nächste Position nach Überdimensionierung
+        } else {
+          nextY = state.battery ? (state.battery.power_kw > 0 ? dataBoxY + 95 : dataBoxY + 80) : dataBoxY + 65;
         }
+
+        // Notstrom-Information
+        const emergencyPowerStatus = state.inverters.some(inv => inv.emergencyPower);
+        const emergencyLabel = document.createElementNS(xmlns, 'text');
+        emergencyLabel.setAttribute('x', dataBoxX + 10);
+        emergencyLabel.setAttribute('y', nextY);
+        emergencyLabel.setAttribute('font-family', 'Arial');
+        emergencyLabel.setAttribute('font-size', '9');
+        emergencyLabel.textContent = 'Notstrom:';
+        svg.appendChild(emergencyLabel);
+
+        const emergencyValue = document.createElementNS(xmlns, 'text');
+        emergencyValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+        emergencyValue.setAttribute('y', nextY);
+        emergencyValue.setAttribute('text-anchor', 'end');
+        emergencyValue.setAttribute('font-family', 'Arial');
+        emergencyValue.setAttribute('font-size', '9');
+        emergencyValue.setAttribute('font-weight', 'bold');
+        emergencyValue.textContent = emergencyPowerStatus ? 'Ja' : 'Nein';
+        svg.appendChild(emergencyValue);
 
         // Draw PV areas - vertically arranged on the left
         state.solarAreas.forEach((sa, index) => {
@@ -1066,6 +1098,7 @@
 
           // Store inverter position for later use
           inv._layoutY = invY;
+          inv._layoutX = x;
 
           // Draw connections from SPD to inverter
           inv.assignedSolarAreaIds.forEach(saId => {
@@ -1117,20 +1150,21 @@
           const nominalCurrent = inv.ls_amps || calculateNominalCurrent(inv.ac_power_w, inv.phases);
           const cableSize = inv.cable_size || calculateCableSizeFromLsCurrent(nominalCurrent);
 
+          // Bei Notstrom-WR: AC-Ausgang nach unten verschieben für Platz oberhalb
+          const acLineY = inv.emergencyPower ? y + 15 : y;
+
           // Line from inverter to circuit breaker
           const invToLsLine = document.createElementNS(xmlns, 'line');
           invToLsLine.setAttribute('x1', x + 30); // Right edge of inverter
-          invToLsLine.setAttribute('y1', y);
+          invToLsLine.setAttribute('y1', acLineY);
           invToLsLine.setAttribute('x2', lsX - 10); // Left edge of LS
-          invToLsLine.setAttribute('y2', y);
+          invToLsLine.setAttribute('y2', acLineY);
           invToLsLine.setAttribute('stroke', '#000');
           invToLsLine.setAttribute('stroke-width', '3');
-          svg.appendChild(invToLsLine);
-
-          // Cable cross-section label (between inverter and LS)
+          svg.appendChild(invToLsLine);          // Cable cross-section label (between inverter and LS)
           const cableLabel = document.createElementNS(xmlns, 'text');
           cableLabel.setAttribute('x', x + 60); // Adjusted position for new LS location
-          cableLabel.setAttribute('y', y - 8);
+          cableLabel.setAttribute('y', acLineY - 8);
           cableLabel.setAttribute('text-anchor', 'middle');
           cableLabel.setAttribute('font-family', 'Arial');
           cableLabel.setAttribute('font-size', '8');
@@ -1142,13 +1176,13 @@
           const lsGroup = document.createElementNS(xmlns, 'use');
           lsGroup.setAttribute('href', '#circuit-breaker');
           lsGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#circuit-breaker');
-          lsGroup.setAttribute('transform', `translate(${lsX}, ${y}) rotate(90)`);
+          lsGroup.setAttribute('transform', `translate(${lsX}, ${acLineY}) rotate(90)`);
           svg.appendChild(lsGroup);
 
           // LS label (text "LS")
           const lsLabel = document.createElementNS(xmlns, 'text');
           lsLabel.setAttribute('x', lsX);
-          lsLabel.setAttribute('y', y - 20);
+          lsLabel.setAttribute('y', acLineY - 20);
           lsLabel.setAttribute('text-anchor', 'middle');
           lsLabel.setAttribute('font-family', 'Arial');
           lsLabel.setAttribute('font-size', '9');
@@ -1160,7 +1194,7 @@
           // Circuit breaker label (nominal current)
           const lsInfo = document.createElementNS(xmlns, 'text');
           lsInfo.setAttribute('x', lsX);
-          lsInfo.setAttribute('y', y - 12);
+          lsInfo.setAttribute('y', acLineY - 12);
           lsInfo.setAttribute('text-anchor', 'middle');
           lsInfo.setAttribute('font-family', 'Arial');
           lsInfo.setAttribute('font-size', '8');
@@ -1171,9 +1205,9 @@
           // Line from circuit breaker to bus collector
           const lsToBusLine = document.createElementNS(xmlns, 'line');
           lsToBusLine.setAttribute('x1', lsX + 10); // Right edge of LS
-          lsToBusLine.setAttribute('y1', y);
+          lsToBusLine.setAttribute('y1', acLineY);
           lsToBusLine.setAttribute('x2', busStartX); // Connect to bus line start
-          lsToBusLine.setAttribute('y2', y);
+          lsToBusLine.setAttribute('y2', acLineY);
           lsToBusLine.setAttribute('stroke', '#000');
           lsToBusLine.setAttribute('stroke-width', '3');
           svg.appendChild(lsToBusLine);
@@ -1181,7 +1215,7 @@
           // Vertical line from horizontal line to bus
           const invToBusLineVertical = document.createElementNS(xmlns, 'line');
           invToBusLineVertical.setAttribute('x1', busStartX);
-          invToBusLineVertical.setAttribute('y1', y);
+          invToBusLineVertical.setAttribute('y1', acLineY);
           invToBusLineVertical.setAttribute('x2', busStartX);
           invToBusLineVertical.setAttribute('y2', busLineY);
           invToBusLineVertical.setAttribute('stroke', '#000');
@@ -1303,7 +1337,7 @@
         meterGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#meter');
         meterGroup.setAttribute('transform', `translate(${meterX}, ${meterY})`);
         svg.appendChild(meterGroup);
-        
+
         const meterLabel = document.createElementNS(xmlns, 'text');
         meterLabel.setAttribute('x', meterX);
         meterLabel.setAttribute('y', meterY - 40);
@@ -1312,52 +1346,203 @@
         meterLabel.setAttribute('font-size', '10');
         meterLabel.setAttribute('font-weight', 'bold');
         meterLabel.textContent = 'Zweirichtungszähler';
-        svg.appendChild(meterLabel);        // Draw load connection (Hauslast) - branch from AC bus line
-        const loadBranchX = busEndX - 160; // Position on the bus line
+        svg.appendChild(meterLabel);        // Check if any inverter has emergency power
+        const hasEmergencyPower = state.inverters.some(inv => inv.emergencyPower);
 
-        // Junction point on bus line for load
-        const loadJunctionPoint = document.createElementNS(xmlns, 'circle');
-        loadJunctionPoint.setAttribute('cx', loadBranchX);
-        loadJunctionPoint.setAttribute('cy', busLineY);
-        loadJunctionPoint.setAttribute('r', '3');
-        loadJunctionPoint.setAttribute('fill', '#000');
-        svg.appendChild(loadJunctionPoint);
+        if (hasEmergencyPower) {
+          // Notstrom-Layout: Haus rechts vom Umschalter
+          const emergencyInv = state.inverters.find(inv => inv.emergencyPower);
 
-        // Line down from bus line to load
-        const loadToBusLine = document.createElementNS(xmlns, 'line');
-        loadToBusLine.setAttribute('x1', loadBranchX);
-        loadToBusLine.setAttribute('y1', busLineY);
-        loadToBusLine.setAttribute('x2', loadBranchX);
-        loadToBusLine.setAttribute('y2', busLineY + 80);
-        loadToBusLine.setAttribute('stroke', '#000');
-        loadToBusLine.setAttribute('stroke-width', '3');
-        svg.appendChild(loadToBusLine);
+          // Umschalter-Position: weiter links um Kollisionen zu vermeiden
+          const switchX = emergencyInv._layoutX + 160;
+          const switchY = emergencyInv._layoutY - 15; // Auf Höhe der Notstrom-Leitung
 
-        // Draw load symbol (Messkonzept-Style with arrows)
-        const loadRect = document.createElementNS(xmlns, 'rect');
-        loadRect.setAttribute('x', loadBranchX - 20);
-        loadRect.setAttribute('y', busLineY + 80);
-        loadRect.setAttribute('width', '40');
-        loadRect.setAttribute('height', '20');
-        loadRect.setAttribute('fill', 'none');
-        loadRect.setAttribute('stroke', '#000');
-        loadRect.setAttribute('stroke-width', '2');
-        svg.appendChild(loadRect);
+          // Haus rechts vom Umschalter
+          const houseX = switchX + 80;
+          const houseY = switchY - 10;
 
-        // Load label
-        const loadLabel = document.createElementNS(xmlns, 'text');
-        loadLabel.setAttribute('x', loadBranchX + 25);
-        loadLabel.setAttribute('y', busLineY + 95);
-        loadLabel.setAttribute('text-anchor', 'start');
-        loadLabel.setAttribute('font-family', 'Arial');
-        loadLabel.setAttribute('font-size', '10');
-        loadLabel.setAttribute('font-weight', 'bold');
-        loadLabel.textContent = 'Haus';
-        svg.appendChild(loadLabel);
+          // 1|0|2 Umschalter Symbol
+          const switchRect = document.createElementNS(xmlns, 'rect');
+          switchRect.setAttribute('x', switchX - 25);
+          switchRect.setAttribute('y', switchY - 15);
+          switchRect.setAttribute('width', '50');
+          switchRect.setAttribute('height', '30');
+          switchRect.setAttribute('fill', 'none');
+          switchRect.setAttribute('stroke', '#000');
+          switchRect.setAttribute('stroke-width', '2');
+          svg.appendChild(switchRect);
+
+          // Umschalter-Beschriftung
+          const switchLabel = document.createElementNS(xmlns, 'text');
+          switchLabel.setAttribute('x', switchX);
+          switchLabel.setAttribute('y', switchY + 2);
+          switchLabel.setAttribute('text-anchor', 'middle');
+          switchLabel.setAttribute('font-family', 'Arial');
+          switchLabel.setAttribute('font-size', '12');
+          switchLabel.setAttribute('font-weight', 'bold');
+          switchLabel.textContent = '1|0|2';
+          svg.appendChild(switchLabel);
+
+          // Anschlüsse am Umschalter
+          // Position 1 (links): Wechselrichter
+          const switch1Circle = document.createElementNS(xmlns, 'circle');
+          switch1Circle.setAttribute('cx', switchX - 25);
+          switch1Circle.setAttribute('cy', switchY);
+          switch1Circle.setAttribute('r', '2');
+          switch1Circle.setAttribute('fill', '#000');
+          svg.appendChild(switch1Circle);
+
+          // Position 2 (unten): Netz
+          const switch2Circle = document.createElementNS(xmlns, 'circle');
+          switch2Circle.setAttribute('cx', switchX);
+          switch2Circle.setAttribute('cy', switchY + 15);
+          switch2Circle.setAttribute('r', '2');
+          switch2Circle.setAttribute('fill', '#000');
+          svg.appendChild(switch2Circle);
+
+          // Ausgang (rechts): Haus
+          const switchOutCircle = document.createElementNS(xmlns, 'circle');
+          switchOutCircle.setAttribute('cx', switchX + 25);
+          switchOutCircle.setAttribute('cy', switchY);
+          switchOutCircle.setAttribute('r', '2');
+          switchOutCircle.setAttribute('fill', '#000');
+          svg.appendChild(switchOutCircle);
+
+          // Notstrom-Leitung vom Wechselrichter zum Umschalter (Position 1 - links)
+          // Oberhalb des normalen AC-Ausgangs
+          const emergencyY = emergencyInv._layoutY - 15; // Oberhalb der normalen AC-Leitung
+
+          const emergencyLine1 = document.createElementNS(xmlns, 'line');
+          emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 30);
+          emergencyLine1.setAttribute('y1', emergencyY);
+          emergencyLine1.setAttribute('x2', switchX - 25);
+          emergencyLine1.setAttribute('y2', emergencyY);
+          emergencyLine1.setAttribute('stroke', '#ff0000');
+          emergencyLine1.setAttribute('stroke-width', '3');
+          emergencyLine1.setAttribute('stroke-dasharray', '10,5');
+          svg.appendChild(emergencyLine1);
+
+          const emergencyLine2 = document.createElementNS(xmlns, 'line');
+          emergencyLine2.setAttribute('x1', switchX - 25);
+          emergencyLine2.setAttribute('y1', emergencyY);
+          emergencyLine2.setAttribute('x2', switchX - 25);
+          emergencyLine2.setAttribute('y2', switchY);
+          emergencyLine2.setAttribute('stroke', '#ff0000');
+          emergencyLine2.setAttribute('stroke-width', '3');
+          emergencyLine2.setAttribute('stroke-dasharray', '10,5');
+          svg.appendChild(emergencyLine2);
+
+          // Netz-Leitung vom Meter zum Umschalter (Position 2 - unten)
+          const meterToSwitchLine1 = document.createElementNS(xmlns, 'line');
+          meterToSwitchLine1.setAttribute('x1', meterX - 30);
+          meterToSwitchLine1.setAttribute('y1', meterY);
+          meterToSwitchLine1.setAttribute('x2', switchX);
+          meterToSwitchLine1.setAttribute('y2', meterY);
+          meterToSwitchLine1.setAttribute('stroke', '#000');
+          meterToSwitchLine1.setAttribute('stroke-width', '3');
+          svg.appendChild(meterToSwitchLine1);
+
+          const meterToSwitchLine2 = document.createElementNS(xmlns, 'line');
+          meterToSwitchLine2.setAttribute('x1', switchX);
+          meterToSwitchLine2.setAttribute('y1', meterY);
+          meterToSwitchLine2.setAttribute('x2', switchX);
+          meterToSwitchLine2.setAttribute('y2', switchY + 15);
+          meterToSwitchLine2.setAttribute('stroke', '#000');
+          meterToSwitchLine2.setAttribute('stroke-width', '3');
+          svg.appendChild(meterToSwitchLine2);
+
+          // Leitung vom Umschalter zum Haus (rechts)
+          const switchToHouseLine = document.createElementNS(xmlns, 'line');
+          switchToHouseLine.setAttribute('x1', switchX + 25);
+          switchToHouseLine.setAttribute('y1', switchY);
+          switchToHouseLine.setAttribute('x2', houseX - 20);
+          switchToHouseLine.setAttribute('y2', houseY + 10);
+          switchToHouseLine.setAttribute('stroke', '#000');
+          switchToHouseLine.setAttribute('stroke-width', '3');
+          svg.appendChild(switchToHouseLine);
+
+          // Haus-Symbol (rechts vom Umschalter)
+          const loadRect = document.createElementNS(xmlns, 'rect');
+          loadRect.setAttribute('x', houseX - 20);
+          loadRect.setAttribute('y', houseY);
+          loadRect.setAttribute('width', '40');
+          loadRect.setAttribute('height', '20');
+          loadRect.setAttribute('fill', 'none');
+          loadRect.setAttribute('stroke', '#000');
+          loadRect.setAttribute('stroke-width', '2');
+          svg.appendChild(loadRect);
+
+          // Haus-Label
+          const loadLabel = document.createElementNS(xmlns, 'text');
+          loadLabel.setAttribute('x', houseX + 25);
+          loadLabel.setAttribute('y', houseY + 15);
+          loadLabel.setAttribute('text-anchor', 'start');
+          loadLabel.setAttribute('font-family', 'Arial');
+          loadLabel.setAttribute('font-size', '10');
+          loadLabel.setAttribute('font-weight', 'bold');
+          loadLabel.textContent = 'Haus';
+          svg.appendChild(loadLabel);
+
+          // Notstrom-Label
+          const emergencyLabel = document.createElementNS(xmlns, 'text');
+          emergencyLabel.setAttribute('x', emergencyInv._layoutX + 40);
+          emergencyLabel.setAttribute('y', emergencyY - 5);
+          emergencyLabel.setAttribute('text-anchor', 'start');
+          emergencyLabel.setAttribute('font-family', 'Arial');
+          emergencyLabel.setAttribute('font-size', '9');
+          emergencyLabel.setAttribute('fill', '#ff0000');
+          emergencyLabel.setAttribute('font-weight', 'bold');
+          emergencyLabel.textContent = 'Notstrom';
+          svg.appendChild(emergencyLabel);
+
+        } else {
+          // Normales Layout: Haus unten
+          const loadBranchX = busEndX - 160; // Position on the bus line
+
+          // Junction point on bus line for load
+          const loadJunctionPoint = document.createElementNS(xmlns, 'circle');
+          loadJunctionPoint.setAttribute('cx', loadBranchX);
+          loadJunctionPoint.setAttribute('cy', busLineY);
+          loadJunctionPoint.setAttribute('r', '3');
+          loadJunctionPoint.setAttribute('fill', '#000');
+          svg.appendChild(loadJunctionPoint);
+
+          // Line down from bus line to load
+          const loadToBusLine = document.createElementNS(xmlns, 'line');
+          loadToBusLine.setAttribute('x1', loadBranchX);
+          loadToBusLine.setAttribute('y1', busLineY);
+          loadToBusLine.setAttribute('x2', loadBranchX);
+          loadToBusLine.setAttribute('y2', busLineY + 80);
+          loadToBusLine.setAttribute('stroke', '#000');
+          loadToBusLine.setAttribute('stroke-width', '3');
+          svg.appendChild(loadToBusLine);
+
+          // Draw load symbol (Messkonzept-Style with arrows)
+          const loadRect = document.createElementNS(xmlns, 'rect');
+          loadRect.setAttribute('x', loadBranchX - 20);
+          loadRect.setAttribute('y', busLineY + 80);
+          loadRect.setAttribute('width', '40');
+          loadRect.setAttribute('height', '20');
+          loadRect.setAttribute('fill', 'none');
+          loadRect.setAttribute('stroke', '#000');
+          loadRect.setAttribute('stroke-width', '2');
+          svg.appendChild(loadRect);
+
+          // Load label
+          const loadLabel = document.createElementNS(xmlns, 'text');
+          loadLabel.setAttribute('x', loadBranchX + 25);
+          loadLabel.setAttribute('y', busLineY + 95);
+          loadLabel.setAttribute('text-anchor', 'start');
+          loadLabel.setAttribute('font-family', 'Arial');
+          loadLabel.setAttribute('font-size', '10');
+          loadLabel.setAttribute('font-weight', 'bold');
+          loadLabel.textContent = 'Haus';
+          svg.appendChild(loadLabel);
+        }
 
         // Draw SPD Type 2 on AC busbar (behind load and meters)
         const spdType2X = busEndX - 70; // Position on the bus line (right of load)
-        
+
         // SPD Type 2 junction point on busbar
         const spdType2JunctionPoint = document.createElementNS(xmlns, 'circle');
         spdType2JunctionPoint.setAttribute('cx', spdType2X);
