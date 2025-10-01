@@ -13,9 +13,12 @@
     h2{margin:6px 0}
     label{display:block;margin-top:8px;font-size:13px}
     input,select{width:100%;max-width:100%;padding:8px;margin-top:4px;border:1px solid #d8dbe9;border-radius:6px;box-sizing:border-box}
-    button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;max-width:100%;box-sizing:border-box;min-height:36px;font-size:13px}
-    .danger{background:#f87171;color:#fff}
+    button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;max-width:100%;box-sizing:border-box;min-height:36px;font-size:13px;transition:all 0.2s ease}
+    button:hover{background:#1454d6;transform:translateY(-1px)}
+    .danger{background:#dc2626;color:#fff;border:1px solid #b91c1c;text-shadow:0 0 3px rgba(0,0,0,0.8)}
+    .danger:hover{background:#b91c1c;border-color:#991b1b}
     .btn-small{padding:4px 8px;min-height:auto;font-size:11px}
+    .btn-small[title]{padding:4px 6px;min-width:28px;font-size:14px;text-shadow:0 0 2px rgba(0,0,0,0.5)}
     .muted{color:var(--muted);font-size:13px}
     .list{margin-top:8px;border-top:1px dashed #e3e6f2;padding-top:8px}
     table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -29,6 +32,17 @@
     .row{display:flex;gap:8px;flex:1;min-height:0}
     .half{flex:1}
     input[type=file]{padding:6px}
+    
+    /* Karten-Layout für Wechselrichter */
+    .cards-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-top:8px}
+    .card{background:#fff;border:1px solid #e6e9f2;border-radius:8px;padding:12px;font-size:13px;position:relative}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:600}
+    .card-content{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-bottom:8px}
+    .card-field{display:flex;flex-direction:column}
+    .card-field-label{color:var(--muted);font-size:11px;margin-bottom:2px}
+    .card-field-value{font-weight:500}
+    .card-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid #f0f2fa}
+    .card-full-width{grid-column:1/-1}
   </style>
 </head>
 <body>
@@ -65,7 +79,7 @@
         <input id="saCount" type="number" min="1" value="10" />
       </label>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
-        <button id="addSA">Solarfläche hinzufügen</button>
+        <button id="addSA">➕ Solarfläche hinzufügen</button>
       </div>
     </div>
     <div class="list">
@@ -98,11 +112,11 @@
       <select id="invAssign" multiple style="height:120px"></select>
     </label>
     <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
-      <button id="addInv">Wechselrichter hinzufügen</button>
-      <button id="clearInv" class="danger">Alle Wechselrichter löschen</button>
+      <button id="addInv" style="flex: 1">➕ Wechselrichter hinzufügen</button>
+      <button id="cancelEditInv" style="display:none; flex: 1">❌ Abbrechen</button>
     </div>
     <div class="list">
-      <table id="invTable"><thead><tr><th>ID</th><th>Name</th><th>Phasen</th><th>AC[kW]</th><th>LS[A]</th><th>Kabel[mm²]</th><th>Notstrom</th><th>Flächen</th></tr></thead><tbody></tbody></table>
+      <div id="invContainer" class="cards-container"></div>
     </div>
     <hr />
     <h2>Batterie</h2>
@@ -119,8 +133,8 @@
       <select id="batAssign"><option value="">-- keiner --</option></select>
     </label>
     <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
-      <button id="addBat" style="flex: 1">Batterie aktualisieren</button>
-      <button id="removeBat" class="danger" style="flex: 1">Batterie löschen</button>
+      <button id="addBat" style="flex: 1">🔄 Batterie aktualisieren</button>
+      <button id="removeBat" class="danger" style="flex: 1">✕ Batterie löschen</button>
     </div>
 
   </div>
@@ -203,7 +217,7 @@
 
       // DOM elems
       const saTable = $('saTable').querySelector('tbody');
-      const invTable = $('invTable').querySelector('tbody');
+      const invContainer = $('invContainer');
       const invAssign = $('invAssign');
       const batAssign = $('batAssign');
 
@@ -304,19 +318,92 @@
         saTable.innerHTML=''; invAssign.innerHTML='';
         state.solarAreas.forEach(sa=>{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${sa.id}</td><td>${sa.name}</td><td>${sa.modules}</td><td>${(sa.modules*state.moduleConfig.wattage)/1000} kW</td><td><button class="danger btn-small" data-id="${sa.id}">Entf</button></td>`;
+          tr.innerHTML = `<td>${sa.id}</td><td>${sa.name}</td><td>${sa.modules}</td><td>${(sa.modules*state.moduleConfig.wattage)/1000} kW</td><td><button class="danger btn-small" data-id="${sa.id}" title="Löschen">✕</button></td>`;
           saTable.appendChild(tr);
           invAssign.appendChild(new Option(`${sa.name} (${sa.id})`, sa.id));
         });
         // invs
-        invTable.innerHTML=''; batAssign.innerHTML=''; batAssign.appendChild(new Option('-- keiner --',''));
+        invContainer.innerHTML=''; batAssign.innerHTML=''; batAssign.appendChild(new Option('-- keiner --',''));
         state.inverters.forEach(inv=>{
-          const tr = document.createElement('tr');
+          const card = document.createElement('div');
+          card.className = 'card';
           const emergencyText = inv.emergencyPower ? 'Ja' : 'Nein';
-          tr.innerHTML = `<td>${inv.id}</td><td>${inv.name}</td><td>${inv.phases}</td><td>${(inv.ac_power_w/1000).toFixed(2)}</td><td>${inv.ls_amps || 'N/A'}A</td><td>${inv.cable_size || 'N/A'}mm²</td><td>${emergencyText}</td><td>${inv.assignedSolarAreaIds.join(', ')}</td>`;
-          invTable.appendChild(tr);
+          const emergencyIcon = inv.emergencyPower ? '⚡' : '';
+          const assignedAreas = inv.assignedSolarAreaIds.length > 0 ? inv.assignedSolarAreaIds.join(', ') : 'Keine';
+          
+          card.innerHTML = `
+            <div class="card-header">
+              <span><strong>${inv.name}</strong> (${inv.id})</span>
+              <span>${emergencyIcon}</span>
+            </div>
+            <div class="card-content">
+              <div class="card-field">
+                <div class="card-field-label">Phasen</div>
+                <div class="card-field-value">${inv.phases}</div>
+              </div>
+              <div class="card-field">
+                <div class="card-field-label">AC-Leistung</div>
+                <div class="card-field-value">${(inv.ac_power_w/1000).toFixed(2)} kW</div>
+              </div>
+              <div class="card-field">
+                <div class="card-field-label">LS-Schutz</div>
+                <div class="card-field-value">${inv.ls_amps || 'N/A'} A</div>
+              </div>
+              <div class="card-field">
+                <div class="card-field-label">Kabelquerschnitt</div>
+                <div class="card-field-value">${inv.cable_size || 'N/A'} mm²</div>
+              </div>
+              <div class="card-field">
+                <div class="card-field-label">Notstrom</div>
+                <div class="card-field-value">${emergencyText}</div>
+              </div>
+              <div class="card-field card-full-width">
+                <div class="card-field-label">Zugeordnete Flächen</div>
+                <div class="card-field-value">${assignedAreas}</div>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn-small" style="flex: 1" data-edit-id="${inv.id}" title="Bearbeiten">✏️ Bearbeiten</button>
+              <button class="danger btn-small" style="flex: 1" data-delete-id="${inv.id}" title="Löschen">✕ Löschen</button>
+            </div>
+          `;
+          invContainer.appendChild(card);
           batAssign.appendChild(new Option(`${inv.name} (${inv.id})`, inv.id));
         });
+
+        // Event-Handler für Bearbeiten und Löschen hinzufügen
+        invContainer.querySelectorAll('button[data-edit-id]').forEach(btn=>btn.addEventListener('click', e=>{
+          const id = btn.getAttribute('data-edit-id');
+          const inv = state.inverters.find(i => i.id === id);
+          if(inv) {
+            // Formular mit Werten füllen
+            $('invName').value = inv.name;
+            $('invPhases').value = inv.phases;
+            $('invAcW').value = inv.ac_power_w;
+            $('invLsAmps').value = inv.ls_amps;
+            $('invCableSize').value = inv.cable_size;
+            $('invEmergencyPower').checked = inv.emergencyPower;
+            
+            // Zugewiesene Solarflächen auswählen
+            Array.from($('invAssign').options).forEach(option => {
+              option.selected = inv.assignedSolarAreaIds.includes(option.value);
+            });
+            
+            // Button-Text ändern und ID merken
+            $('addInv').textContent = '🔄 Wechselrichter aktualisieren';
+            $('addInv').setAttribute('data-editing-id', id);
+            $('cancelEditInv').style.display = 'inline-block';
+          }
+        }));
+
+        invContainer.querySelectorAll('button[data-delete-id]').forEach(btn=>btn.addEventListener('click', e=>{
+          const id = btn.getAttribute('data-delete-id');
+          if(confirm('Wechselrichter löschen?')) {
+            state.inverters = state.inverters.filter(i => i.id !== id);
+            renderLists();
+            resetInverterForm();
+          }
+        }));
 
         // battery
         if(state.battery){
@@ -355,8 +442,9 @@
         renderLists();
       });
 
-      // add inverter
+      // add/edit inverter
       $('addInv').addEventListener('click', ()=>{
+        const editingId = $('addInv').getAttribute('data-editing-id');
         const name = $('invName').value.trim()||'WR';
         const phases = $('invPhases').value;
         const ac_power_w = parseFloat($('invAcW').value)||0;
@@ -364,13 +452,46 @@
         const cable_size = parseFloat($('invCableSize').value)||4;
         const emergencyPower = $('invEmergencyPower').checked || false;
         const assigned = Array.from($('invAssign').selectedOptions).map(o=>o.value);
-        const id = 'INV'+uid();
-        state.inverters.push({id,name,phases,ac_power_w,ls_amps,cable_size,emergencyPower,assignedSolarAreaIds:assigned,assignedBatteryId:null});
-        $('invName').value=''; $('invAcW').value=5000; $('invLsAmps').value=25; $('invCableSize').value=4; $('invEmergencyPower').checked=false; $('invAssign').selectedIndex=-1;
+        
+        if(editingId) {
+          // Bearbeiten-Modus: vorhandenen Wechselrichter aktualisieren
+          const inv = state.inverters.find(i => i.id === editingId);
+          if(inv) {
+            inv.name = name;
+            inv.phases = phases;
+            inv.ac_power_w = ac_power_w;
+            inv.ls_amps = ls_amps;
+            inv.cable_size = cable_size;
+            inv.emergencyPower = emergencyPower;
+            inv.assignedSolarAreaIds = assigned;
+          }
+          resetInverterForm();
+        } else {
+          // Normaler Hinzufügen-Modus
+          const id = 'INV'+uid();
+          state.inverters.push({id,name,phases,ac_power_w,ls_amps,cable_size,emergencyPower,assignedSolarAreaIds:assigned,assignedBatteryId:null});
+          resetInverterForm();
+        }
         renderLists();
       });
 
-      $('clearInv').addEventListener('click', ()=>{ if(confirm('Alle Wechselrichter löschen?')){ state.inverters=[]; renderLists(); }});
+      // cancel edit inverter
+      $('cancelEditInv').addEventListener('click', ()=>{
+        resetInverterForm();
+      });
+
+      // Hilfsfunktion zum Zurücksetzen des Wechselrichter-Formulars
+      function resetInverterForm() {
+        $('invName').value='';
+        $('invAcW').value=5000;
+        $('invLsAmps').value=25;
+        $('invCableSize').value=4;
+        $('invEmergencyPower').checked=false;
+        $('invAssign').selectedIndex=-1;
+        $('addInv').textContent = '➕ Wechselrichter hinzufügen';
+        $('addInv').removeAttribute('data-editing-id');
+        $('cancelEditInv').style.display = 'none';
+      }
 
       // battery
       $('addBat').addEventListener('click', ()=>{
@@ -1353,13 +1474,23 @@
           // Notstrom-Layout: Haus rechts vom Umschalter
           const emergencyInv = state.inverters.find(inv => inv.emergencyPower);
 
-          // Umschalter-Position: weiter links um Kollisionen zu vermeiden
-          const switchX = emergencyInv._layoutX + 160;
-          const switchY = emergencyInv._layoutY - 15; // Auf Höhe der Notstrom-Leitung
-
-          // Haus rechts vom Umschalter
-          const houseX = switchX + 80;
-          const houseY = switchY - 10;
+          // Bei mehr als 3 Solarflächen: Umschalter und Haus oberhalb der busLineY positionieren
+          const hasManySolarAreas = emergencyInv.assignedSolarAreaIds.length > 3;
+          let switchX, switchY, houseX, houseY;
+          
+          if (hasManySolarAreas) {
+            // Position oberhalb der busLineY mit mehr Abstand
+            switchX = emergencyInv._layoutX + 160;
+            switchY = busLineY - 80; // Weit oberhalb der busLineY
+            houseX = switchX + 80;
+            houseY = switchY - 10;
+          } else {
+            // Normale Position bei <= 3 Solarflächen
+            switchX = emergencyInv._layoutX + 160;
+            switchY = emergencyInv._layoutY - 15; // Auf Höhe der Notstrom-Leitung
+            houseX = switchX + 80;
+            houseY = switchY - 10;
+          }
 
           // 1|0|2 Umschalter Symbol
           const switchRect = document.createElementNS(xmlns, 'rect');
@@ -1383,8 +1514,31 @@
           switchLabel.textContent = '1|0|2';
           svg.appendChild(switchLabel);
 
+          // Umschalter Info
+          const switchInfo = document.createElementNS(xmlns, 'text');
+          switchInfo.setAttribute('x', switchX);
+          switchInfo.setAttribute('y', switchY - 30);
+          switchInfo.setAttribute('text-anchor', 'middle');
+          switchInfo.setAttribute('font-family', 'Arial');
+          switchInfo.setAttribute('font-size', '10');
+          switchInfo.setAttribute('font-weight', 'bold');
+          switchInfo.setAttribute('fill', '#000');
+          switchInfo.textContent = 'Lastumschalter';
+          svg.appendChild(switchInfo);
+
+          // Umschalter details
+          const switchDetail = document.createElementNS(xmlns, 'text');
+          switchDetail.setAttribute('x', switchX);
+          switchDetail.setAttribute('y', switchY - 20);
+          switchDetail.setAttribute('text-anchor', 'middle');
+          switchDetail.setAttribute('font-family', 'Arial');
+          switchDetail.setAttribute('font-size', '8');
+          switchDetail.setAttribute('fill', '#222');
+          switchDetail.textContent = '4polig, 63A';
+          svg.appendChild(switchDetail);
+
           // Anschlüsse am Umschalter
-          // Position 1 (links): Wechselrichter
+          // Position 1 (links): Wechselrichter - immer links mittig, egal wie viele Solarflächen
           const switch1Circle = document.createElementNS(xmlns, 'circle');
           switch1Circle.setAttribute('cx', switchX - 25);
           switch1Circle.setAttribute('cy', switchY);
@@ -1408,29 +1562,84 @@
           switchOutCircle.setAttribute('fill', '#000');
           svg.appendChild(switchOutCircle);
 
+          let emergencyY;
           // Notstrom-Leitung vom Wechselrichter zum Umschalter (Position 1 - links)
-          // Oberhalb des normalen AC-Ausgangs
-          const emergencyY = emergencyInv._layoutY - 15; // Oberhalb der normalen AC-Leitung
+          if (hasManySolarAreas) {
+            // Bei mehr als 3 Solarflächen: Einfache L-Route - nach oben, dann nach rechts
+            emergencyY = emergencyInv._layoutY - 15; // Startpunkt oberhalb der normalen AC-Leitung
+            const routeOverY = busLineY - 100; // Höhe für die Route über busLineY
 
-          const emergencyLine1 = document.createElementNS(xmlns, 'line');
-          emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 30);
-          emergencyLine1.setAttribute('y1', emergencyY);
-          emergencyLine1.setAttribute('x2', switchX - 25);
-          emergencyLine1.setAttribute('y2', emergencyY);
-          emergencyLine1.setAttribute('stroke', '#ff0000');
-          emergencyLine1.setAttribute('stroke-width', '3');
-          emergencyLine1.setAttribute('stroke-dasharray', '10,5');
-          svg.appendChild(emergencyLine1);
+            // 1. Horizontale Linie am Wechselrichter Ausgang
+            const emergencyLineStart = document.createElementNS(xmlns, 'line');
+            emergencyLineStart.setAttribute('x1', emergencyInv._layoutX + 30);
+            emergencyLineStart.setAttribute('y1', emergencyY);
+            emergencyLineStart.setAttribute('x2', emergencyInv._layoutX + 80);
+            emergencyLineStart.setAttribute('y2', emergencyY);
+            emergencyLineStart.setAttribute('stroke', '#ff0000');
+            emergencyLineStart.setAttribute('stroke-width', '3');
+            emergencyLineStart.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(emergencyLineStart);
 
-          const emergencyLine2 = document.createElementNS(xmlns, 'line');
-          emergencyLine2.setAttribute('x1', switchX - 25);
-          emergencyLine2.setAttribute('y1', emergencyY);
-          emergencyLine2.setAttribute('x2', switchX - 25);
-          emergencyLine2.setAttribute('y2', switchY);
-          emergencyLine2.setAttribute('stroke', '#ff0000');
-          emergencyLine2.setAttribute('stroke-width', '3');
-          emergencyLine2.setAttribute('stroke-dasharray', '10,5');
-          svg.appendChild(emergencyLine2);
+            // 2. Vertikale Linie nach oben über busLineY
+            const emergencyLine1 = document.createElementNS(xmlns, 'line');
+            emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 80);
+            emergencyLine1.setAttribute('y1', emergencyY);
+            emergencyLine1.setAttribute('x2', emergencyInv._layoutX + 80);
+            emergencyLine1.setAttribute('y2', switchY);
+            emergencyLine1.setAttribute('stroke', '#ff0000');
+            emergencyLine1.setAttribute('stroke-width', '3');
+            emergencyLine1.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(emergencyLine1);
+
+            // 3. Horizontale Linie nach rechts zum Umschalter
+            const emergencyLine2 = document.createElementNS(xmlns, 'line');
+            emergencyLine2.setAttribute('x1', emergencyInv._layoutX + 80);
+            emergencyLine2.setAttribute('y1', switchY);
+            emergencyLine2.setAttribute('x2', switchX - 25);
+            emergencyLine2.setAttribute('y2', switchY);
+            emergencyLine2.setAttribute('stroke', '#ff0000');
+            emergencyLine2.setAttribute('stroke-width', '3');
+            emergencyLine2.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(emergencyLine2);
+
+            // Junction points für bessere Sichtbarkeit
+            const junction1 = document.createElementNS(xmlns, 'circle');
+            junction1.setAttribute('cx', emergencyInv._layoutX + 80);
+            junction1.setAttribute('cy', switchY);
+            junction1.setAttribute('r', '2');
+            junction1.setAttribute('fill', '#ff0000');
+            svg.appendChild(junction1);
+
+            const junction2 = document.createElementNS(xmlns, 'circle');
+            junction2.setAttribute('cx', switchX - 25);
+            junction2.setAttribute('cy', switchY);
+            junction2.setAttribute('r', '2');
+            junction2.setAttribute('fill', '#ff0000');
+            svg.appendChild(junction2);
+          } else {
+            // Normale direkte Route bei <= 3 Solarflächen
+            emergencyY = emergencyInv._layoutY - 15; // Oberhalb der normalen AC-Leitung
+
+            const emergencyLine1 = document.createElementNS(xmlns, 'line');
+            emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 30);
+            emergencyLine1.setAttribute('y1', emergencyY);
+            emergencyLine1.setAttribute('x2', switchX - 25);
+            emergencyLine1.setAttribute('y2', emergencyY);
+            emergencyLine1.setAttribute('stroke', '#ff0000');
+            emergencyLine1.setAttribute('stroke-width', '3');
+            emergencyLine1.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(emergencyLine1);
+
+            const emergencyLine2 = document.createElementNS(xmlns, 'line');
+            emergencyLine2.setAttribute('x1', switchX - 25);
+            emergencyLine2.setAttribute('y1', emergencyY);
+            emergencyLine2.setAttribute('x2', switchX - 25);
+            emergencyLine2.setAttribute('y2', switchY);
+            emergencyLine2.setAttribute('stroke', '#ff0000');
+            emergencyLine2.setAttribute('stroke-width', '3');
+            emergencyLine2.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(emergencyLine2);
+          }
 
           // Netz-Leitung vom Meter zum Umschalter (Position 2 - unten)
           const meterToSwitchLine1 = document.createElementNS(xmlns, 'line');
@@ -1485,8 +1694,15 @@
 
           // Notstrom-Label
           const emergencyLabel = document.createElementNS(xmlns, 'text');
-          emergencyLabel.setAttribute('x', emergencyInv._layoutX + 40);
-          emergencyLabel.setAttribute('y', emergencyY - 5);
+          if (hasManySolarAreas) {
+            // Bei mehr als 3 Solarflächen: Label oberhalb der ersten horizontalen Linie
+            emergencyLabel.setAttribute('x', emergencyInv._layoutX + 85);
+            emergencyLabel.setAttribute('y', switchY - 10); // Weiter oberhalb
+          } else {
+            // Bei <= 3 Solarflächen: Label oberhalb der horizontalen Linie
+            emergencyLabel.setAttribute('x', emergencyInv._layoutX + 85);
+            emergencyLabel.setAttribute('y', emergencyInv._layoutY - 25); // Weiter oberhalb
+          }
           emergencyLabel.setAttribute('text-anchor', 'start');
           emergencyLabel.setAttribute('font-family', 'Arial');
           emergencyLabel.setAttribute('font-size', '9');
