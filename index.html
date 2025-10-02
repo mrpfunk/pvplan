@@ -58,7 +58,7 @@
     .section-content:not(.collapsed){max-height:none}
     .section-content.collapsed{overflow:hidden;max-height:0}
     .section-content.collapsed{max-height:0;padding:0;margin:0;border:none;box-shadow:none}
-    .chevron{transition:transform 0.2s ease;font-size:14px;color:#64748b}
+    .chevron{transition:transform 0.2s ease;font-size:14px;color:#64748b;user-select:none;pointer-events:none}
     .chevron.collapsed{transform:rotate(-90deg)}
     .section-title{font-size:16px;margin:0}
     .section-content label{margin-top:12px}
@@ -89,11 +89,11 @@
     </div>
 
     <hr />
-    <div class="section-header" onclick="toggleSection('pv-module')">
+    <div class="section-header collapsed" onclick="toggleSection('pv-module')">
       <h2 class="section-title">PV-Module Konfiguration</h2>
-      <span class="chevron">▼</span>
+      <span class="chevron collapsed">▼</span>
     </div>
-    <div class="section-content" id="pv-module-content">
+    <div class="section-content collapsed" id="pv-module-content">
       <div>
         <label>Hersteller + Typ
           <input id="moduleInfo" placeholder="z.B. SunPower Maxeon 3" />
@@ -105,11 +105,11 @@
     </div>
 
     <hr />
-    <div class="section-header" onclick="toggleSection('solarflaechen')">
+    <div class="section-header collapsed" onclick="toggleSection('solarflaechen')">
       <h2 class="section-title">Solarflächen</h2>
-      <span class="chevron">▼</span>
+      <span class="chevron collapsed">▼</span>
     </div>
-    <div class="section-content" id="solarflaechen-content">
+    <div class="section-content collapsed" id="solarflaechen-content">
       <div>
         <label>Name
           <input id="saName" placeholder="Dach Süd" />
@@ -126,11 +126,11 @@
       </div>
     </div>
     <hr />
-    <div class="section-header" onclick="toggleSection('wechselrichter')">
+    <div class="section-header collapsed" onclick="toggleSection('wechselrichter')">
       <h2 class="section-title">Wechselrichter</h2>
-      <span class="chevron">▼</span>
+      <span class="chevron collapsed">▼</span>
     </div>
-    <div class="section-content" id="wechselrichter-content">
+    <div class="section-content collapsed" id="wechselrichter-content">
       <label>Name
         <input id="invName" placeholder="SMA Sunny Tripower" />
       </label>
@@ -164,11 +164,11 @@
       </div>
     </div>
     <hr />
-    <div class="section-header" onclick="toggleSection('batterie')">
+    <div class="section-header collapsed" onclick="toggleSection('batterie')">
       <h2 class="section-title">Batterie</h2>
-      <span class="chevron">▼</span>
+      <span class="chevron collapsed">▼</span>
     </div>
-    <div class="section-content" id="batterie-content">
+    <div class="section-content collapsed" id="batterie-content">
       <label>Name
         <input id="batName" placeholder="BatteryX" />
       </label>
@@ -231,6 +231,21 @@
       }
     }
 
+    // Collapse all sections except the first one (Projekt)
+    function collapseAllExceptFirst() {
+      const sections = ['pv-module', 'solarflaechen', 'wechselrichter', 'batterie'];
+      sections.forEach(sectionId => {
+        const content = document.getElementById(sectionId + '-content');
+        const header = document.querySelector(`[onclick="toggleSection('${sectionId}')"]`);
+        const chevron = header ? header.querySelector('.chevron') : null;
+
+        if (content && header && chevron) {
+          content.classList.add('collapsed');
+          chevron.classList.add('collapsed');
+          header.classList.add('collapsed');
+        }
+      });
+    }
     // Simple client-side app
     (function(){
       // state
@@ -571,6 +586,7 @@
       // project controls
       $('newProject').addEventListener('click', ()=>{
         if(!confirm('Neues Projekt erstellen? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
+        collapseAllExceptFirst();
         state.projectName = 'Mein PV-Projekt';
         state.moduleConfig = { info: '', wattage: 420 };
         state.solarAreas=[]; state.inverters=[]; state.battery=null;
@@ -647,6 +663,7 @@
           state.solarAreas = obj.solarAreas||[];
           state.inverters = obj.inverters||[];
           state.battery = obj.battery||null;
+          collapseAllExceptFirst();
           $('projectName').value = state.projectName;
           $('moduleInfo').value = state.moduleConfig.info;
           $('moduleWattage').value = state.moduleConfig.wattage;
@@ -2167,6 +2184,7 @@
       updateLsSuggestion();
 
     })();
+
   </script>
 </body>
 </html>
