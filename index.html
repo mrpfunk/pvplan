@@ -1808,7 +1808,7 @@
 
           const spdType2X = houseX;
           const spdType2Y = houseY - 50;
-          const spdType2Box = createSPD('SPD Type 2', { x: spdType2X - 5, y: spdType2Y });
+          const spdType2Box = createSPD('SPD Typ 2', { x: spdType2X - 5, y: spdType2Y });
           svg.appendChild(spdType2Box);
 
           // Verbindungslinie vom SPD: nach oben, dann links, dann runter auf die Leitung zwischen Lastumschalter und Haus
@@ -1876,7 +1876,7 @@
           spdType2ToBusLine.setAttribute('stroke-width', '2');
           svg.appendChild(spdType2ToBusLine);
 
-          const spdType2Box = createSPD('SPD Type 2', { x: spdType2X - 5, y: busLineY + 40 });
+          const spdType2Box = createSPD('SPD Typ 2', { x: spdType2X - 5, y: busLineY + 40 });
           svg.appendChild(spdType2Box);
         }
 
@@ -1988,7 +1988,7 @@
         hakLabel.textContent = 'HAK';
         svg.appendChild(hakLabel);
 
-        // SPD Kombi - draw inline like SPD Type 2
+        // SPD Kombi - draw inline like SPD Typ 2
         // Vertical line from busbar down
         const spdKombiToBusLine = document.createElementNS(xmlns, 'line');
         spdKombiToBusLine.setAttribute('x1', spdKombiX);
