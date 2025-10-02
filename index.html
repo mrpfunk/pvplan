@@ -23,6 +23,13 @@
     .list{margin-top:8px;border-top:1px dashed #e3e6f2;padding-top:8px}
     table{width:100%;border-collapse:collapse;table-layout:fixed}
     th,td{padding:6px;text-align:left;border-bottom:1px solid #f0f2fa;font-size:13px;word-wrap:break-word;overflow:hidden}
+    /* Spezifische Spaltenbreiten für Solarflächen-Tabelle */
+    #saTable{table-layout:fixed}
+    #saTable th:nth-child(1),#saTable td:nth-child(1){width:25px}
+    #saTable th:nth-child(2),#saTable td:nth-child(2){width:auto}
+    #saTable th:nth-child(3),#saTable td:nth-child(3){width:45px}
+    #saTable th:nth-child(4),#saTable td:nth-child(4){width:49px}
+    #saTable th:nth-child(5),#saTable td:nth-child(5){width:25px;text-align:right}
     .controls{display:flex;gap:8px;align-items:center}
     .preview{flex:1;border:1px solid #e6e9f2;border-radius:8px;padding:8px;background:#fff;overflow:auto;display:flex;flex-direction:column;min-height:0}
     .svg-container{width:100%;flex:1;display:flex;justify-content:center;align-items:flex-start;min-height:0}
@@ -32,7 +39,6 @@
     .row{display:flex;gap:8px;flex:1;min-height:0}
     .half{flex:1}
     input[type=file]{padding:6px}
-    
     /* Karten-Layout für Wechselrichter */
     .cards-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-top:8px}
     .card{background:#fff;border:1px solid #e6e9f2;border-radius:8px;padding:12px;font-size:13px;position:relative}
@@ -43,98 +49,142 @@
     .card-field-value{font-weight:500}
     .card-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid #f0f2fa}
     .card-full-width{grid-column:1/-1}
+
+    /* Kollapsible Sektionen */
+    .section-header{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px 8px 0 0;padding:12px;margin:12px 0 0 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s ease;font-weight:600;color:#334155;position:relative;z-index:1}
+    .section-header:hover{background:#f1f5f9;transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+    .section-header.collapsed{margin-bottom:12px;border-radius:8px;border-bottom:1px solid #e2e8f0}
+    .section-content{overflow:visible;transition:max-height 0.3s ease;max-height:none;background:#fafbfc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:16px;margin:0 0 12px 0;box-shadow:inset 0 1px 3px rgba(0,0,0,0.02)}
+    .section-content:not(.collapsed){max-height:none}
+    .section-content.collapsed{overflow:hidden;max-height:0}
+    .section-content.collapsed{max-height:0;padding:0;margin:0;border:none;box-shadow:none}
+    .chevron{transition:transform 0.2s ease;font-size:14px;color:#64748b}
+    .chevron.collapsed{transform:rotate(-90deg)}
+    .section-title{font-size:16px;margin:0}
+    .section-content label{margin-top:12px}
+    .section-content label:first-child{margin-top:0}
+    .section-content > div{margin-top:0}
+    .section-content .list{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-top:12px}
+    .section-content button{margin-top:0}
+    hr{display:none}
   </style>
+  <script src="spd.js"></script>
 </head>
 <body>
   <div class="sidebar">
-    <h2>Projekt</h2>
-    <label>Projektname
-      <input id="projectName" placeholder="Mein PV-Projekt" />
-    </label>
-    <div style="margin-top:8px;display:flex;gap:6px">
-      <button id="newProject" style="flex: 1">Neu</button>
-      <button id="saveProject" style="flex: 1">Projekt speichern</button>
-      <button id="openProject" style="flex: 1">Projekt öffnen</button>
-      <input id="loadFile" type="file" accept="application/json" style="display:none" />
+    <div class="section-header" onclick="toggleSection('projekt')">
+      <h2 class="section-title">Projekt</h2>
+      <span class="chevron">▼</span>
     </div>
-
-    <hr />
-    <h2>PV-Module Konfiguration</h2>
-    <div>
-      <label>Hersteller + Typ
-        <input id="moduleInfo" placeholder="z.B. SunPower Maxeon 3" />
+    <div class="section-content" id="projekt-content">
+      <label>Projektname
+        <input id="projectName" placeholder="Mein PV-Projekt" />
       </label>
-      <label>Modul Nennleistung (W)
-        <input id="moduleWattage" type="number" min="1" value="420" />
-      </label>
-    </div>
-
-    <hr />
-    <h2>Solarflächen</h2>
-    <div>
-      <label>Name
-        <input id="saName" placeholder="Dach Süd" />
-      </label>
-      <label>Anzahl Module
-        <input id="saCount" type="number" min="1" value="10" />
-      </label>
-      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
-        <button id="addSA">➕ Solarfläche hinzufügen</button>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button id="newProject" style="flex: 1">Neu</button>
+        <button id="saveProject" style="flex: 1">Projekt speichern</button>
+        <button id="openProject" style="flex: 1">Projekt öffnen</button>
+        <input id="loadFile" type="file" accept="application/json" style="display:none" />
       </div>
     </div>
-    <div class="list">
-      <table id="saTable"><thead><tr><th>ID</th><th>Name</th><th>Module</th><th>Leistung</th><th></th></tr></thead><tbody></tbody></table>
+
+    <hr />
+    <div class="section-header" onclick="toggleSection('pv-module')">
+      <h2 class="section-title">PV-Module Konfiguration</h2>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-content" id="pv-module-content">
+      <div>
+        <label>Hersteller + Typ
+          <input id="moduleInfo" placeholder="z.B. SunPower Maxeon 3" />
+        </label>
+        <label>Modul Nennleistung (W)
+          <input id="moduleWattage" type="number" min="1" value="420" />
+        </label>
+      </div>
+    </div>
+
+    <hr />
+    <div class="section-header" onclick="toggleSection('solarflaechen')">
+      <h2 class="section-title">Solarflächen</h2>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-content" id="solarflaechen-content">
+      <div>
+        <label>Name
+          <input id="saName" placeholder="Dach Süd" />
+        </label>
+        <label>Anzahl Module
+          <input id="saCount" type="number" min="1" value="10" />
+        </label>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          <button id="addSA">➕ Solarfläche hinzufügen</button>
+        </div>
+      </div>
+      <div class="list">
+        <table id="saTable"><thead><tr><th>ID</th><th>Name</th><th>Module</th><th>Leistung</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
     </div>
     <hr />
-    <h2>Wechselrichter</h2>
-    <label>Name
-      <input id="invName" placeholder="SMA Sunny Tripower" />
-    </label>
-    <label>Phasen
-      <select id="invPhases"><option value="3-ph">3-ph</option><option value="1-ph">1-ph</option></select>
-    </label>
-    <label>AC-Nennleistung (W)
-      <input id="invAcW" type="number" min="1" value="5000" />
-    </label>
-    <label>LS-Nennstrom (A)
-      <input id="invLsAmps" type="number" min="6" max="125" value="25" />
-      <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
-    </label>
-    <label>Leitungsquerschnitt (mm²)
-      <input id="invCableSize" type="number" min="1.5" max="50" step="0.5" value="4" />
-      <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
-    </label>
-    <label style="display:flex;align-items:center;margin-top:12px;">
-      <input id="invEmergencyPower" type="checkbox" style="width:auto;margin-right:8px;margin-top:0;" />
-      Notstrom-Funktionalität
-    </label>
-    <label>Solarflächen zuordnen (STRG/SHIFT für mehrere)
-      <select id="invAssign" multiple style="height:120px"></select>
-    </label>
-    <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
-      <button id="addInv" style="flex: 1">➕ Wechselrichter hinzufügen</button>
-      <button id="cancelEditInv" style="display:none; flex: 1">❌ Abbrechen</button>
+    <div class="section-header" onclick="toggleSection('wechselrichter')">
+      <h2 class="section-title">Wechselrichter</h2>
+      <span class="chevron">▼</span>
     </div>
-    <div class="list">
-      <div id="invContainer" class="cards-container"></div>
+    <div class="section-content" id="wechselrichter-content">
+      <label>Name
+        <input id="invName" placeholder="SMA Sunny Tripower" />
+      </label>
+      <label>Phasen
+        <select id="invPhases"><option value="3-ph">3-ph</option><option value="1-ph">1-ph</option></select>
+      </label>
+      <label>AC-Nennleistung (W)
+        <input id="invAcW" type="number" min="1" value="5000" />
+      </label>
+      <label>LS-Nennstrom (A)
+        <input id="invLsAmps" type="number" min="6" max="125" value="25" />
+        <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
+      </label>
+      <label>Leitungsquerschnitt (mm²)
+        <input id="invCableSize" type="number" min="1.5" max="50" step="0.5" value="4" />
+        <div class="muted small" style="margin-top:2px;">Vorschlag wird automatisch berechnet (10m Leitungslänge)</div>
+      </label>
+      <label style="display:flex;align-items:center;margin-top:12px;">
+        <input id="invEmergencyPower" type="checkbox" style="width:auto;margin-right:8px;margin-top:0;" />
+        Notstrom-Funktionalität
+      </label>
+      <label>Solarflächen zuordnen (STRG/SHIFT für mehrere)
+        <select id="invAssign" multiple style="height:120px"></select>
+      </label>
+      <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
+        <button id="addInv" style="flex: 1">➕ Wechselrichter hinzufügen</button>
+        <button id="cancelEditInv" style="display:none; flex: 1">❌ Abbrechen</button>
+      </div>
+      <div class="list">
+        <div id="invContainer" class="cards-container"></div>
+      </div>
     </div>
     <hr />
-    <h2>Batterie</h2>
-    <label>Name
-      <input id="batName" placeholder="BatteryX" />
-    </label>
-    <label>Kapazität (kWh)
-      <input id="batKwh" type="number" min="0.1" step="0.1" value="10" />
-    </label>
-    <label>Max. Leistung (kW)
-      <input id="batPowerKw" type="number" min="0" step="0.1" value="5" />
-    </label>
-    <label>Zugeordneter Wechselrichter
-      <select id="batAssign"><option value="">-- keiner --</option></select>
-    </label>
-    <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
-      <button id="addBat" style="flex: 1">🔄 Batterie aktualisieren</button>
-      <button id="removeBat" class="danger" style="flex: 1">✕ Batterie löschen</button>
+    <div class="section-header" onclick="toggleSection('batterie')">
+      <h2 class="section-title">Batterie</h2>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-content" id="batterie-content">
+      <label>Name
+        <input id="batName" placeholder="BatteryX" />
+      </label>
+      <label>Kapazität (kWh)
+        <input id="batKwh" type="number" min="0.1" step="0.1" value="10" />
+      </label>
+      <label>Max. Leistung (kW)
+        <input id="batPowerKw" type="number" min="0" step="0.1" value="5" />
+      </label>
+      <label>Zugeordneter Wechselrichter
+        <select id="batAssign"><option value="">-- keiner --</option></select>
+      </label>
+      <div style="margin-top:8px;display:flex;flex-direction:row;gap:6px">
+        <button id="addBat" style="flex: 1">🔄 Batterie aktualisieren</button>
+        <button id="removeBat" class="danger" style="flex: 1">✕ Batterie löschen</button>
+      </div>
     </div>
 
   </div>
@@ -164,6 +214,23 @@
   <script src="https://unpkg.com/svg2pdf.js@2.2.1/dist/svg2pdf.umd.min.js"></script>
 
   <script>
+    // Toggle section visibility
+    function toggleSection(sectionId) {
+      const content = document.getElementById(sectionId + '-content');
+      const chevron = event.target.closest('.section-header').querySelector('.chevron');
+      const header = event.target.closest('.section-header');
+
+      if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        chevron.classList.remove('collapsed');
+        header.classList.remove('collapsed');
+      } else {
+        content.classList.add('collapsed');
+        chevron.classList.add('collapsed');
+        header.classList.add('collapsed');
+      }
+    }
+
     // Simple client-side app
     (function(){
       // state
@@ -330,7 +397,6 @@
           const emergencyText = inv.emergencyPower ? 'Ja' : 'Nein';
           const emergencyIcon = inv.emergencyPower ? '⚡' : '';
           const assignedAreas = inv.assignedSolarAreaIds.length > 0 ? inv.assignedSolarAreaIds.join(', ') : 'Keine';
-          
           card.innerHTML = `
             <div class="card-header">
               <span><strong>${inv.name}</strong> (${inv.id})</span>
@@ -383,12 +449,10 @@
             $('invLsAmps').value = inv.ls_amps;
             $('invCableSize').value = inv.cable_size;
             $('invEmergencyPower').checked = inv.emergencyPower;
-            
             // Zugewiesene Solarflächen auswählen
             Array.from($('invAssign').options).forEach(option => {
               option.selected = inv.assignedSolarAreaIds.includes(option.value);
             });
-            
             // Button-Text ändern und ID merken
             $('addInv').textContent = '🔄 Wechselrichter aktualisieren';
             $('addInv').setAttribute('data-editing-id', id);
@@ -452,7 +516,6 @@
         const cable_size = parseFloat($('invCableSize').value)||4;
         const emergencyPower = $('invEmergencyPower').checked || false;
         const assigned = Array.from($('invAssign').selectedOptions).map(o=>o.value);
-        
         if(editingId) {
           // Bearbeiten-Modus: vorhandenen Wechselrichter aktualisieren
           const inv = state.inverters.find(i => i.id === editingId);
@@ -824,52 +887,6 @@
         lsSymbol.appendChild(lsLine2);
         defs.appendChild(lsSymbol);
 
-        // Überspannungsschutz (SPD) Symbol
-        const spdSymbol = document.createElementNS(xmlns, 'g');
-        spdSymbol.setAttribute('id', 'surge-protector');
-
-        // Main body (small rectangle)
-        const spdRect = document.createElementNS(xmlns, 'rect');
-        spdRect.setAttribute('x', '-6');
-        spdRect.setAttribute('y', '-4');
-        spdRect.setAttribute('width', '12');
-        spdRect.setAttribute('height', '8');
-        spdRect.setAttribute('fill', 'none');
-        spdRect.setAttribute('stroke', '#000');
-        spdRect.setAttribute('stroke-width', '1.5');
-
-        // SPD characteristic symbol (zigzag line)
-        const spdZigzag = document.createElementNS(xmlns, 'path');
-        spdZigzag.setAttribute('d', 'M -4 -2 L -2 2 L 0 -2 L 2 2 L 4 -2');
-        spdZigzag.setAttribute('fill', 'none');
-        spdZigzag.setAttribute('stroke', '#000');
-        spdZigzag.setAttribute('stroke-width', '1');
-
-        // Connection points
-        const spdLine1 = document.createElementNS(xmlns, 'line');
-        spdLine1.setAttribute('x1', '0');
-        spdLine1.setAttribute('y1', '-4');
-        spdLine1.setAttribute('x2', '0');
-        spdLine1.setAttribute('y2', '-8');
-        spdLine1.setAttribute('stroke', '#000');
-        spdLine1.setAttribute('stroke-width', '1.5');
-
-        const spdLine2 = document.createElementNS(xmlns, 'line');
-        spdLine2.setAttribute('x1', '0');
-        spdLine2.setAttribute('y1', '4');
-        spdLine2.setAttribute('x2', '0');
-        spdLine2.setAttribute('y2', '8');
-        spdLine2.setAttribute('stroke', '#000');
-        spdLine2.setAttribute('stroke-width', '1.5');
-
-        spdSymbol.appendChild(spdRect);
-        spdSymbol.appendChild(spdZigzag);
-        spdSymbol.appendChild(spdLine1);
-        spdSymbol.appendChild(spdLine2);
-        defs.appendChild(spdSymbol);
-
-
-
         // SLS (Selektiver Leitungsschutzschalter) Symbol
         const slsSymbol = document.createElementNS(xmlns, 'g');
         slsSymbol.setAttribute('id', 'selective-circuit-breaker');
@@ -1145,11 +1162,8 @@
           pvToSpdLine.setAttribute('stroke-dasharray', '5,5');
           svg.appendChild(pvToSpdLine);
 
-          // Surge protector symbol
-          const spdGroup = document.createElementNS(xmlns, 'use');
-          spdGroup.setAttribute('href', '#surge-protector');
-          spdGroup.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#surge-protector');
-          spdGroup.setAttribute('transform', `translate(${spdX}, ${y}) rotate(90)`);
+          // Surge protector symbol using createSPD
+          const spdGroup = window.createSPD('', {x: spdX - 6, y: y - 7 });
           svg.appendChild(spdGroup);
 
           // SPD label
@@ -1158,8 +1172,9 @@
           spdLabel.setAttribute('y', y - 15);
           spdLabel.setAttribute('text-anchor', 'middle');
           spdLabel.setAttribute('font-family', 'Arial');
-          spdLabel.setAttribute('font-size', '7');
-          spdLabel.setAttribute('fill', '#222');
+          spdLabel.setAttribute('font-size', '9');
+          spdLabel.setAttribute('fill', '#000');
+          spdLabel.setAttribute('font-weight', 'bold');
           spdLabel.textContent = 'SPD';
           svg.appendChild(spdLabel);
         });
@@ -1477,7 +1492,6 @@
           // Bei mehr als 3 Solarflächen: Umschalter und Haus oberhalb der busLineY positionieren
           const hasManySolarAreas = emergencyInv.assignedSolarAreaIds.length > 3;
           let switchX, switchY, houseX, houseY;
-          
           if (hasManySolarAreas) {
             // Position oberhalb der busLineY mit mehr Abstand
             switchX = emergencyInv._layoutX + 160;
@@ -1756,86 +1770,98 @@
           svg.appendChild(loadLabel);
         }
 
-        // Draw SPD Type 2 on AC busbar (behind load and meters)
-        const spdType2X = busEndX - 70; // Position on the bus line (right of load)
+        // Draw SPD Typ 2 - position depends on emergency power
+        if (hasEmergencyPower) {
+          // Position SPD Typ 2 above the house
+          const emergencyInv = state.inverters.find(inv => inv.emergencyPower);
+          const hasManySolarAreas = emergencyInv.assignedSolarAreaIds.length > 3;
+          let switchX, switchY, houseX, houseY;
 
-        // SPD Type 2 junction point on busbar
-        const spdType2JunctionPoint = document.createElementNS(xmlns, 'circle');
-        spdType2JunctionPoint.setAttribute('cx', spdType2X);
-        spdType2JunctionPoint.setAttribute('cy', busLineY);
-        spdType2JunctionPoint.setAttribute('r', '2');
-        spdType2JunctionPoint.setAttribute('fill', '#000');
-        svg.appendChild(spdType2JunctionPoint);
+          if (hasManySolarAreas) {
+            switchX = emergencyInv._layoutX + 160;
+            switchY = busLineY - 80;
+            houseX = switchX + 80;
+            houseY = switchY - 10;
+          } else {
+            switchX = emergencyInv._layoutX + 160;
+            switchY = emergencyInv._layoutY - 15;
+            houseX = switchX + 80;
+            houseY = switchY - 10;
+          }
 
-        // SPD Type 2 vertical line from busbar
-        const spdType2ToBusLine = document.createElementNS(xmlns, 'line');
-        spdType2ToBusLine.setAttribute('x1', spdType2X);
-        spdType2ToBusLine.setAttribute('y1', busLineY);
-        spdType2ToBusLine.setAttribute('x2', spdType2X);
-        spdType2ToBusLine.setAttribute('y2', busLineY + 40);
-        spdType2ToBusLine.setAttribute('stroke', '#000');
-        spdType2ToBusLine.setAttribute('stroke-width', '2');
-        svg.appendChild(spdType2ToBusLine);
+          const spdType2X = houseX;
+          const spdType2Y = houseY - 50;
+          const spdType2Box = createSPD('SPD Type 2', { x: spdType2X - 5, y: spdType2Y });
+          svg.appendChild(spdType2Box);
 
-        // SPD Type 2 rectangle box
-        const spdType2Box = document.createElementNS(xmlns, 'rect');
-        spdType2Box.setAttribute('x', spdType2X - 12);
-        spdType2Box.setAttribute('y', busLineY + 40);
-        spdType2Box.setAttribute('width', '24');
-        spdType2Box.setAttribute('height', '30');
-        spdType2Box.setAttribute('fill', 'none');
-        spdType2Box.setAttribute('stroke', '#000');
-        spdType2Box.setAttribute('stroke-width', '2');
-        svg.appendChild(spdType2Box);
+          // Verbindungslinie vom SPD: nach oben, dann links, dann runter auf die Leitung zwischen Lastumschalter und Haus
+          const spdTopY = spdType2Y ; // Oben am SPD (SPD hat etwa 14px Höhe nach oben)
+          const connectionHighY = spdTopY - 20; // Noch etwas höher gehen
+          const switchToHouseLineX = switchX + 52; // Mittig auf der Leitung zwischen Umschalter und Haus
 
-        // SPD Type 2 internal arrow symbol (up)
-        const spdType2Arrow1 = document.createElementNS(xmlns, 'path');
-        spdType2Arrow1.setAttribute('d', `M ${spdType2X - 6} ${busLineY + 50} L ${spdType2X - 3} ${busLineY + 47} L ${spdType2X} ${busLineY + 50}`);
-        spdType2Arrow1.setAttribute('fill', 'none');
-        spdType2Arrow1.setAttribute('stroke', '#000');
-        spdType2Arrow1.setAttribute('stroke-width', '1');
-        svg.appendChild(spdType2Arrow1);
+          // 1. Vertikale Linie von oben am SPD nach oben
+          const spdTopLine = document.createElementNS(xmlns, 'line');
+          spdTopLine.setAttribute('x1', spdType2X);
+          spdTopLine.setAttribute('y1', spdTopY);
+          spdTopLine.setAttribute('x2', spdType2X);
+          spdTopLine.setAttribute('y2', connectionHighY);
+          spdTopLine.setAttribute('stroke', '#000');
+          spdTopLine.setAttribute('stroke-width', '2');
+          svg.appendChild(spdTopLine);
 
-        // SPD Type 2 internal arrow symbol (down)
-        const spdType2Arrow2 = document.createElementNS(xmlns, 'path');
-        spdType2Arrow2.setAttribute('d', `M ${spdType2X} ${busLineY + 60} L ${spdType2X + 3} ${busLineY + 63} L ${spdType2X + 6} ${busLineY + 60}`);
-        spdType2Arrow2.setAttribute('fill', 'none');
-        spdType2Arrow2.setAttribute('stroke', '#000');
-        spdType2Arrow2.setAttribute('stroke-width', '1');
-        svg.appendChild(spdType2Arrow2);
+          // 2. Horizontale Linie nach links
+          const spdToSwitchHorizontal = document.createElementNS(xmlns, 'line');
+          spdToSwitchHorizontal.setAttribute('x1', spdType2X);
+          spdToSwitchHorizontal.setAttribute('y1', connectionHighY);
+          spdToSwitchHorizontal.setAttribute('x2', switchToHouseLineX);
+          spdToSwitchHorizontal.setAttribute('y2', connectionHighY);
+          spdToSwitchHorizontal.setAttribute('stroke', '#000');
+          spdToSwitchHorizontal.setAttribute('stroke-width', '2');
+          svg.appendChild(spdToSwitchHorizontal);
 
-        // SPD Type 2 ground connection line
-        const spdType2GroundLine = document.createElementNS(xmlns, 'line');
-        spdType2GroundLine.setAttribute('x1', spdType2X);
-        spdType2GroundLine.setAttribute('y1', busLineY + 70);
-        spdType2GroundLine.setAttribute('x2', spdType2X);
-        spdType2GroundLine.setAttribute('y2', busLineY + 85);
-        spdType2GroundLine.setAttribute('stroke', '#000');
-        spdType2GroundLine.setAttribute('stroke-width', '2');
-        svg.appendChild(spdType2GroundLine);
+          // 3. Vertikale Linie nach unten zur Leitung zwischen Umschalter und Haus
+          const spdDownLine = document.createElementNS(xmlns, 'line');
+          spdDownLine.setAttribute('x1', switchToHouseLineX);
+          spdDownLine.setAttribute('y1', connectionHighY);
+          spdDownLine.setAttribute('x2', switchToHouseLineX);
+          spdDownLine.setAttribute('y2', switchY);
+          spdDownLine.setAttribute('stroke', '#000');
+          spdDownLine.setAttribute('stroke-width', '2');
+          svg.appendChild(spdDownLine);
 
-        // SPD Type 2 ground symbol (three horizontal lines)
-        for (let i = 0; i < 3; i++) {
-          const groundLine = document.createElementNS(xmlns, 'line');
-          groundLine.setAttribute('x1', spdType2X - (6 - i * 2));
-          groundLine.setAttribute('y1', busLineY + 85 + i * 3);
-          groundLine.setAttribute('x2', spdType2X + (6 - i * 2));
-          groundLine.setAttribute('y2', busLineY + 85 + i * 3);
-          groundLine.setAttribute('stroke', '#000');
-          groundLine.setAttribute('stroke-width', '1');
-          svg.appendChild(groundLine);
+          // Junction point auf der Leitung zwischen Umschalter und Haus
+          const spdJunction = document.createElementNS(xmlns, 'circle');
+          spdJunction.setAttribute('cx', switchToHouseLineX);
+          spdJunction.setAttribute('cy', switchY);
+          spdJunction.setAttribute('r', '2');
+          spdJunction.setAttribute('fill', '#000');
+          svg.appendChild(spdJunction);
+
+        } else {
+          // Draw SPD Typ 2 on AC busbar (behind load and meters) - original position
+          const spdType2X = busEndX - 70; // Position on the bus line (right of load)
+
+          // SPD Typ 2 junction point on busbar
+          const spdType2JunctionPoint = document.createElementNS(xmlns, 'circle');
+          spdType2JunctionPoint.setAttribute('cx', spdType2X);
+          spdType2JunctionPoint.setAttribute('cy', busLineY);
+          spdType2JunctionPoint.setAttribute('r', '3');
+          spdType2JunctionPoint.setAttribute('fill', '#000');
+          svg.appendChild(spdType2JunctionPoint);
+
+          // SPD Typ 2 vertical line from busbar
+          const spdType2ToBusLine = document.createElementNS(xmlns, 'line');
+          spdType2ToBusLine.setAttribute('x1', spdType2X);
+          spdType2ToBusLine.setAttribute('y1', busLineY);
+          spdType2ToBusLine.setAttribute('x2', spdType2X);
+          spdType2ToBusLine.setAttribute('y2', busLineY + 40);
+          spdType2ToBusLine.setAttribute('stroke', '#000');
+          spdType2ToBusLine.setAttribute('stroke-width', '2');
+          svg.appendChild(spdType2ToBusLine);
+
+          const spdType2Box = createSPD('SPD Type 2', { x: spdType2X - 5, y: busLineY + 40 });
+          svg.appendChild(spdType2Box);
         }
-
-        // SPD Type 2 label
-        const spdType2Label = document.createElementNS(xmlns, 'text');
-        spdType2Label.setAttribute('x', spdType2X + 18);
-        spdType2Label.setAttribute('y', busLineY + 55);
-        spdType2Label.setAttribute('text-anchor', 'start');
-        spdType2Label.setAttribute('font-family', 'Arial');
-        spdType2Label.setAttribute('font-size', '9');
-        spdType2Label.setAttribute('font-weight', 'bold');
-        spdType2Label.textContent = 'SPD Typ2';
-        svg.appendChild(spdType2Label);
 
         // Connection from SPD Kombi to SLS
         const spdKombiToSlsLine = document.createElementNS(xmlns, 'line');
@@ -1957,63 +1983,9 @@
         svg.appendChild(spdKombiToBusLine);
 
         // SPD Kombi rectangle box
-        const spdKombiBox = document.createElementNS(xmlns, 'rect');
-        spdKombiBox.setAttribute('x', spdKombiX - 12);
-        spdKombiBox.setAttribute('y', meterY + 40);
-        spdKombiBox.setAttribute('width', '24');
-        spdKombiBox.setAttribute('height', '30');
-        spdKombiBox.setAttribute('fill', 'none');
-        spdKombiBox.setAttribute('stroke', '#000');
-        spdKombiBox.setAttribute('stroke-width', '2');
+        const spdKombiBox = createSPD('SPD Kombi', { x: spdKombiX - 5, y: meterY + 40 });
         svg.appendChild(spdKombiBox);
 
-        // SPD Kombi internal arrow symbol (up)
-        const spdKombiArrow1 = document.createElementNS(xmlns, 'path');
-        spdKombiArrow1.setAttribute('d', `M ${spdKombiX - 6} ${meterY + 50} L ${spdKombiX - 3} ${meterY + 47} L ${spdKombiX} ${meterY + 50}`);
-        spdKombiArrow1.setAttribute('fill', 'none');
-        spdKombiArrow1.setAttribute('stroke', '#000');
-        spdKombiArrow1.setAttribute('stroke-width', '1');
-        svg.appendChild(spdKombiArrow1);
-
-        // SPD Kombi internal arrow symbol (down)
-        const spdKombiArrow2 = document.createElementNS(xmlns, 'path');
-        spdKombiArrow2.setAttribute('d', `M ${spdKombiX} ${meterY + 60} L ${spdKombiX + 3} ${meterY + 63} L ${spdKombiX + 6} ${meterY + 60}`);
-        spdKombiArrow2.setAttribute('fill', 'none');
-        spdKombiArrow2.setAttribute('stroke', '#000');
-        spdKombiArrow2.setAttribute('stroke-width', '1');
-        svg.appendChild(spdKombiArrow2);
-
-        // SPD Kombi ground connection line
-        const spdKombiGroundLine = document.createElementNS(xmlns, 'line');
-        spdKombiGroundLine.setAttribute('x1', spdKombiX);
-        spdKombiGroundLine.setAttribute('y1', meterY + 70);
-        spdKombiGroundLine.setAttribute('x2', spdKombiX);
-        spdKombiGroundLine.setAttribute('y2', meterY + 85);
-        spdKombiGroundLine.setAttribute('stroke', '#000');
-        spdKombiGroundLine.setAttribute('stroke-width', '2');
-        svg.appendChild(spdKombiGroundLine);
-
-        // SPD Kombi ground symbol (three horizontal lines)
-        for (let i = 0; i < 3; i++) {
-          const groundLine = document.createElementNS(xmlns, 'line');
-          groundLine.setAttribute('x1', spdKombiX - (6 - i * 2));
-          groundLine.setAttribute('y1', meterY + 85 + i * 3);
-          groundLine.setAttribute('x2', spdKombiX + (6 - i * 2));
-          groundLine.setAttribute('y2', meterY + 85 + i * 3);
-          groundLine.setAttribute('stroke', '#000');
-          groundLine.setAttribute('stroke-width', '1');
-          svg.appendChild(groundLine);
-        }
-
-        const spdKombiLabel = document.createElementNS(xmlns, 'text');
-        spdKombiLabel.setAttribute('x', spdKombiX + 18);
-        spdKombiLabel.setAttribute('y', meterY + 55);
-        spdKombiLabel.setAttribute('text-anchor', 'start');
-        spdKombiLabel.setAttribute('font-family', 'Arial');
-        spdKombiLabel.setAttribute('font-size', '9');
-        spdKombiLabel.setAttribute('font-weight', 'bold');
-        spdKombiLabel.textContent = 'SPD Kombi';
-        svg.appendChild(spdKombiLabel);
 
         notes = [
           'Alle PV-Strings lassen sich an den Wechselrichteren abschalten (DC-Trennvorrichtung)',
@@ -2179,7 +2151,7 @@
             tempContainer.parentNode.removeChild(tempContainer);
           }
 
-          pdf.save((state.projectName || 'pv-schaltplan') + '_professionell.pdf');
+          pdf.save((state.projectName || 'Stromlaufplan') + '.pdf');
         }catch(err){
           alert('PDF Export fehlgeschlagen: '+err.message);
           console.error(err);
