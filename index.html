@@ -66,6 +66,221 @@
     .section-content > div{margin-top:0}
     .section-content .list{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-top:12px}
     .section-content button{margin-top:0}
+
+    /* Tab Navigation */
+    .tab-navigation{display:flex;gap:8px;margin-bottom:12px;border-bottom:2px solid #e6e9f2;align-items:center}
+    .tab-btn{background:transparent;color:var(--muted);border:none;padding:12px 16px;border-radius:0;cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;margin:0;min-height:auto;transition:all 0.2s ease;transform:none}
+    .tab-btn:hover{background:transparent;color:#334155;transform:none}
+    .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tab-content{flex:1;display:flex;flex-direction:column;min-height:0}
+    .tab-content:not(.active){display:none}
+
+    /* Print Styles for Protocol */
+    @media print {
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        padding: 15px;
+        margin: 0;
+        background: white;
+        font-size: 11px;
+        max-width: 100%;
+      }
+
+      @page {
+        margin: 12mm;
+        size: A4 portrait;
+      }
+
+      /* Hide sidebar and header */
+      .sidebar {
+        display: none !important;
+      }
+
+      .main {
+        width: 100% !important;
+        max-width: 100%;
+        padding: 0 !important;
+        gap: 0;
+        flex: none;
+      }
+
+      .main > header {
+        display: none !important;
+      }
+
+      .tab-btn {
+        display: none !important;
+      }
+
+      /* Hide add buttons for inverters and strings */
+      button[onclick*="addInverter"],
+      button[onclick*="addString"] {
+        display: none !important;
+      }
+
+      /* Tab content optimization */
+      #tab-protokoll {
+        display: block !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        flex: none;
+      }
+
+      #tab-schaltplan {
+        display: none !important;
+      }
+
+      .row {
+        display: none;
+      }
+
+      /* Protocol header */
+      .protocol-header {
+        margin: -15px -15px 15px -15px;
+        padding: 15px 20px;
+        border-radius: 0;
+        box-shadow: none;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .protocol-header h1 {
+        font-size: 18px;
+        margin: 0;
+      }
+
+      .protocol-section {
+        margin-bottom: 12px;
+        page-break-inside: avoid;
+      }
+
+      .protocol-section-title {
+        padding: 6px 10px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .subsection-title {
+        font-size: 12px;
+        margin: 10px 0 6px 0;
+      }
+
+      .info-grid {
+        gap: 8px;
+      }
+
+      .info-field {
+        padding: 5px 7px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .info-field label {
+        font-size: 9px;
+      }
+
+      .info-field input,
+      .info-field textarea {
+        border-bottom: 1px solid #000 !important;
+        font-size: 11px;
+        padding: 4px 5px;
+        background: transparent !important;
+      }
+
+      .protocol-table {
+        margin-top: 6px;
+        font-size: 10px;
+        box-shadow: none;
+      }
+
+      .protocol-table th {
+        padding: 5px 6px;
+        font-size: 9px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .protocol-table td {
+        padding: 4px 6px;
+        font-size: 11px;
+      }
+
+      .protocol-table tbody tr:nth-child(even) {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* Hide action columns */
+      .protocol-table th:last-child,
+      .protocol-table td:last-child {
+        display: none;
+      }
+
+      /* Hide remarks section by default */
+      #remarks-section {
+        display: none;
+      }
+
+      /* Show remarks if filled */
+      #remarks-section:has(textarea:not(:placeholder-shown)) {
+        display: block;
+        page-break-inside: avoid;
+      }
+
+      /* Hide weather and reference inputs during print */
+      div[style*="display:flex;gap:15px;margin-bottom:10px;padding:10px;background"] {
+        display: none !important;
+      }
+
+      input, textarea {
+        border-bottom: 1px solid #000 !important;
+      }
+
+      /* Optimize Kunde/Prüfer section */
+      .protocol-section > div[style*="grid-template-columns:1fr 1fr"] {
+        gap: 10px !important;
+      }
+
+      .protocol-section > div[style*="grid-template-columns:1fr 1fr"] textarea {
+        min-height: 50px !important;
+        max-height: 50px !important;
+        border: none !important;
+        border-bottom: 1px solid #000 !important;
+        padding: 2px 0 !important;
+        background: transparent !important;
+        font-size: 9px !important;
+        resize: none !important;
+        overflow: hidden !important;
+      }
+
+      .protocol-section > div[style*="grid-template-columns:1fr 1fr"] h3 {
+        font-size: 11px !important;
+        margin: 0 0 4px 0 !important;
+      }
+
+      /* Optimize checkboxes spacing */
+      div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] {
+        gap: 4px !important;
+      }
+
+      div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] label {
+        padding: 2px 4px !important;
+        margin: 0 !important;
+        font-size: 10px !important;
+      }
+
+      div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] input[type="checkbox"] {
+        width: 12px !important;
+        height: 12px !important;
+        margin: 0 !important;
+      }
+    }
+
     hr{display:none}
   </style>
   <script src="spd.js"></script>
@@ -195,17 +410,220 @@
         <div id="metaBox" class="small muted" style="margin-top:4px;">Keine Metadaten</div>
       </div>
       <div class="controls">
+        <button id="schaltplanBtn" class="tab-btn active" onclick="switchTab('schaltplan')">Schaltplan</button>
+        <button id="protokollBtn" class="tab-btn" onclick="switchTab('protokoll')">Prüfprotokoll</button>
         <button id="gen">Schaltplan generieren</button>
         <button id="exportPdf">Export PDF</button>
+        <button id="printProtocol" style="display:none">Drucken</button>
       </div>
     </header>
 
-    <div class="row">
-      <div class="preview">
-        <h3>Vorschau</h3>
-        <div class="svg-container" id="svgWrap">Keine Vorschau. Bitte „Schaltplan generieren“ klicken.</div>
+    <div id="tab-schaltplan" class="tab-content active">
+      <div class="row">
+        <div class="preview">
+          <h3>Vorschau</h3>
+          <div class="svg-container" id="svgWrap">Keine Vorschau. Bitte „Schaltplan generieren" klicken.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-protokoll" class="tab-content" style="overflow-y:auto;padding:16px">
+      <style>
+        :root{--primary-color:#1e3a8a;--secondary-color:#3b82f6;--border-color:#d1d5db;--header-bg:#f3f4f6;--text-color:#1f2937}
+        .protocol-header{background:linear-gradient(135deg,var(--primary-color) 0%,var(--secondary-color) 100%);color:#fff;padding:20px 25px;margin:-16px -16px 20px -16px;border-radius:0 0 6px 6px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+        .protocol-header h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-0.5px}
+        .protocol-section{margin-bottom:18px;page-break-inside:avoid}
+        .protocol-section-title{background:var(--header-bg);color:var(--primary-color);padding:8px 12px;margin:0 0 10px 0;font-size:15px;font-weight:600;border-left:3px solid var(--secondary-color);border-radius:3px}
+        .protocol-info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;font-size:12px}
+        .protocol-info div{background:rgba(255,255,255,0.1);padding:6px 10px;border-radius:3px}
+        .info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px}
+        .info-field{display:flex;flex-direction:column;padding:6px 8px;background:#fafafa;border-radius:3px;border:1px solid var(--border-color)}
+        .info-field label{font-weight:600;font-size:10px;color:var(--primary-color);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px}
+        .info-field input,.info-field textarea{border:none;border-bottom:1px solid var(--border-color);background:#fff;padding:5px 6px;font-size:13px;font-family:inherit;transition:border-color 0.3s;width:100%;box-sizing:border-box}
+        .info-field input:focus,.info-field textarea:focus{outline:none;border-bottom-color:var(--secondary-color)}
+        .protocol-table{width:100%;border-collapse:collapse;margin-top:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-radius:4px;overflow:hidden;font-size:12px}
+        .protocol-table thead{background:var(--primary-color);color:#fff}
+        .protocol-table th{padding:7px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.3px}
+        .protocol-table td{padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px}
+        .protocol-table tbody tr:nth-child(even){background:#f9fafb}
+        .protocol-table tbody tr:hover{background:#f3f4f6}
+        .protocol-table tbody tr:last-child td{border-bottom:none}
+        .subsection-title{color:var(--primary-color);font-size:14px;font-weight:600;margin:12px 0 8px 0;padding-bottom:3px;border-bottom:2px solid var(--border-color)}
+        .protocol-btn{background:var(--secondary-color);color:#fff;border:none;padding:8px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.3s;font-family:inherit}
+        .protocol-btn:hover{background:var(--primary-color)}
+        .protocol-btn-delete{background:#ef4444;padding:4px 10px;font-size:11px}
+        .protocol-btn-delete:hover{background:#dc2626}
+      </style>
+
+      <div class="protocol-header">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h1>Prüfprotokoll – Wechselrichter & PV‑Anlage</h1>
+          <div style="text-align:right"><div><strong>Prüfdatum:</strong> _________________</div></div>
+        </div>
       </div>
 
+      <div class="protocol-section">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+          <div>
+            <h3 style="font-size:13px;margin:0 0 8px 0;color:var(--primary-color)">Kunde</h3>
+            <textarea style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box" placeholder="Name&#10;Firma (optional)&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon"></textarea>
+          </div>
+          <div>
+            <h3 style="font-size:13px;margin:0 0 8px 0;color:var(--primary-color)">Prüfer</h3>
+            <textarea style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box">Betriebsadresse&#10;Name&#10;Telefon</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="protocol-section">
+        <h2 class="protocol-section-title">Allgemeine Messwerte</h2>
+        <table class="protocol-table">
+          <thead>
+            <tr>
+              <th>Messgröße</th>
+              <th>Wert</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Erdwiderstand</td>
+              <td><input type="text" value="8,9 Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
+              <td>✓ i.O.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="protocol-section-title">Sichtprüfung der DC-Verkabelung</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
+            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <span style="font-size:12px">Kennzeichnungen / Beschilderung</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
+            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <span style="font-size:12px">DC-Freischalter vorhanden und beschriftet</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
+            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <span style="font-size:12px">Potentialausgleich vorhanden und geprüft</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
+            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <span style="font-size:12px">Überspannungsschutz vorhanden (DC/AC)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="protocol-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h2 class="protocol-section-title" style="margin:0">Wechselrichter – Messwerte</h2>
+          <button class="protocol-btn" onclick="addInverter()">+ Wechselrichter hinzufügen</button>
+        </div>
+        <table class="protocol-table" id="inverters-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Z<sub>S</sub></th>
+              <th>R<sub>Iso</sub></th>
+              <th>R<sub>Low</sub></th>
+              <th>Status</th>
+              <th style="width:60px">Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="inverters-tbody">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="protocol-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:15px">
+          <h2 class="protocol-section-title" style="margin:0;flex-shrink:0">PV‑Strings – Messwerte</h2>
+          <div style="flex-grow:1;display:flex;align-items:center;gap:10px">
+            <label style="font-size:11px;font-weight:600;color:var(--primary-color);white-space:nowrap">Modulbezeichnung:</label>
+            <input type="text" id="module-designation" value="Trina Vertex S+ TSM-NEG9R.28 460W" style="flex-grow:1;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
+          </div>
+          <button class="protocol-btn" onclick="addString()">+ String hinzufügen</button>
+        </div>
+
+        <div style="display:flex;gap:15px;margin-bottom:10px;padding:10px;background:#f9fafb;border-radius:4px;border:1px solid var(--border-color)">
+          <div style="flex:1">
+            <label style="font-size:11px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:4px">Wetterbedingungen</label>
+            <select id="weather-condition" onchange="updateWeatherInRemarks()" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
+              <option value="sunny">Volle Sonne (klarer Himmel)</option>
+              <option value="cloudy">Bewölkt / diffuser Himmel</option>
+              <option value="heavy-clouds">Starke Bewölkung / Schatten</option>
+              <option value="low-light">Sehr schwaches Licht / Dämmerung</option>
+            </select>
+          </div>
+          <div style="flex:0 0 150px">
+            <label style="font-size:11px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:4px">I<sub>sc</sub> Referenz (A)</label>
+            <input type="number" id="isc-reference" value="10.8" step="0.1" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
+          </div>
+        </div>
+
+        <table class="protocol-table" id="strings-table">
+          <thead>
+            <tr>
+              <th>String</th>
+              <th>Anzahl Module</th>
+              <th>U<sub>oc</sub></th>
+              <th>R<sub>Iso</sub></th>
+              <th>I<sub>sc</sub></th>
+              <th style="width:60px">Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="strings-tbody">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="protocol-section" id="remarks-section">
+        <div class="info-field" style="grid-column:1/-1">
+          <label>Zusätzliche Hinweise</label>
+          <textarea id="remarks-textarea" style="width:100%;min-height:50px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+      </div>
+
+      <div class="protocol-section">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <h3 style="font-size:12px;font-weight:600;color:var(--primary-color);margin:0 0 6px 0">Prüfer</h3>
+            <div style="display:grid;grid-template-columns:auto auto 1fr;gap:10px;align-items:end">
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Ort</label>
+                <input type="text" style="width:80px;border:none;border-bottom:2px solid var(--text-color);padding:2px;font-size:11px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Datum</label>
+                <input type="text" style="width:90px;border:none;border-bottom:2px solid var(--text-color);padding:2px;font-size:11px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Unterschrift</label>
+                <div style="border-bottom:2px solid var(--text-color);height:22px"></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 style="font-size:12px;font-weight:600;color:var(--primary-color);margin:0 0 6px 0">Kunde</h3>
+            <div style="display:grid;grid-template-columns:auto auto 1fr;gap:10px;align-items:end">
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Ort</label>
+                <input type="text" style="width:80px;border:none;border-bottom:2px solid var(--text-color);padding:2px;font-size:11px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Datum</label>
+                <input type="text" style="width:90px;border:none;border-bottom:2px solid var(--text-color);padding:2px;font-size:11px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:2px">Unterschrift</label>
+                <div style="border-bottom:2px solid var(--text-color);height:22px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -246,10 +664,203 @@
         }
       });
     }
+
+    // Print protocol function
+    function printProtocol() {
+      // Add weather condition to remarks before printing
+      const weatherSelect = document.getElementById('weather-condition');
+      const remarksTextarea = document.getElementById('remarks-textarea');
+      let originalRemarks = '';
+
+      if (weatherSelect && remarksTextarea) {
+        const weatherOptions = {
+          'sunny': 'Volle Sonne (klarer Himmel)',
+          'cloudy': 'Bewölkt / diffuser Himmel',
+          'heavy-clouds': 'Starke Bewölkung / Schatten',
+          'low-light': 'Sehr schwaches Licht / Dämmerung'
+        };
+
+        const selectedWeatherValue = weatherSelect.value;
+        const weatherText = weatherOptions[selectedWeatherValue] || selectedWeatherValue;
+        const weatherLine = `Messung bei: ${weatherText}`;
+
+        // Store original remarks to restore after print
+        originalRemarks = remarksTextarea.value;
+
+        // Get current remarks text
+        const currentRemarks = remarksTextarea.value.trim();
+
+        // Add weather info if not already present
+        if (!currentRemarks.includes(weatherLine)) {
+          const newRemarks = currentRemarks ? `${currentRemarks}\n\n${weatherLine}` : weatherLine;
+          remarksTextarea.value = newRemarks;
+        }
+      }
+
+      // CSS @media print handles all the hiding, so we just need to trigger print
+      // Small delay to ensure browser is ready
+      setTimeout(() => {
+        window.print();
+        // Restore original remarks after print
+        if (remarksTextarea && originalRemarks !== '') {
+          remarksTextarea.value = originalRemarks;
+        }
+      }, 100);
+    }
+
+    // Tab switching functionality
+    function switchTab(tabName) {
+      // Hide all tab-content, remove active class from all buttons
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show selected tab, add active class to button
+      const tabContent = document.getElementById('tab-' + tabName);
+      const tabBtn = document.getElementById(tabName + 'Btn');
+      if (tabContent) tabContent.classList.add('active');
+      if (tabBtn) tabBtn.classList.add('active');
+
+      // Toggle action button visibility based on active tab
+      const genBtn = document.getElementById('gen');
+      const exportBtn = document.getElementById('exportPdf');
+      const printBtn = document.getElementById('printProtocol');
+
+      if (tabName === 'schaltplan') {
+        genBtn.style.display = 'block';
+        exportBtn.style.display = 'block';
+        printBtn.style.display = 'none';
+      } else if (tabName === 'protokoll') {
+        genBtn.style.display = 'none';
+        exportBtn.style.display = 'none';
+        printBtn.style.display = 'block';
+      }
+
+      // If switching to protokoll tab, populate with current project data
+      if (tabName === 'protokoll') {
+        populateProtocolFromProject();
+      }
+    }
+
+    // Populate protocol with project data
+    function populateProtocolFromProject() {
+      // Set module designation
+      const moduleDesignationEl = document.getElementById('module-designation');
+      if (moduleDesignationEl && window.state) {
+        moduleDesignationEl.value = window.state.moduleConfig.info || 'Trina Vertex S+ TSM-NEG9R.28 460W';
+      }
+
+      // Add strings from solar areas
+      addStringsFromSolarAreas();
+
+      // Add inverters from project
+      addInvertersFromProject();
+    }
+
+    // Add strings from solar areas to protocol
+    function addStringsFromSolarAreas() {
+      const tbody = document.getElementById('strings-tbody');
+      if (!tbody || !window.state) return;
+
+      // Clear existing rows
+      tbody.innerHTML = '';
+
+      // Add a row for each solar area
+      window.state.solarAreas.forEach((sa, idx) => {
+        const row = document.createElement('tr');
+        row.id = 'protocol-string-' + sa.id;
+
+        const isc = calculateIscForString();
+        row.innerHTML = `
+          <td><input type="text" value="${sa.id}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
+          <td><input type="text" value="${sa.modules}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" placeholder="V" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="> 999 MΩ" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${isc} A" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td style="text-align:center"><button class="protocol-btn-delete" onclick="removeProtocolString('${sa.id}')" style="padding:4px 8px;font-size:10px">×</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Add inverters from project to protocol
+    function addInvertersFromProject() {
+      const tbody = document.getElementById('inverters-tbody');
+      if (!tbody || !window.state) return;
+
+      // Clear existing rows
+      tbody.innerHTML = '';
+
+      // Add a row for each inverter
+      window.state.inverters.forEach((inv, idx) => {
+        const row = document.createElement('tr');
+        row.id = 'protocol-inverter-' + inv.id;
+        row.innerHTML = `
+          <td><input type="text" value="${inv.name}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
+          <td><input type="text" placeholder="Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="> 999 MΩ" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="< 1 Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td>✓ i.O.</td>
+          <td style="text-align:center"><button class="protocol-btn-delete" onclick="removeProtocolInverter('${inv.id}')" style="padding:4px 8px;font-size:10px">×</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Calculate Isc for strings (from protocol.html logic)
+    function calculateIscForString() {
+      const weatherSelect = document.getElementById('weather-condition');
+      const iscRef = parseFloat(document.getElementById('isc-reference').value) || 10.8;
+
+      const weatherData = {
+        'sunny': { minPercent: 0.898, maxPercent: 1.0 },
+        'cloudy': { minPercent: 0.398, maxPercent: 0.5 },
+        'heavy-clouds': { minPercent: 0.204, maxPercent: 0.296 },
+        'low-light': { minPercent: 0.046, maxPercent: 0.102 }
+      };
+
+      const selectedWeather = weatherData[weatherSelect ? weatherSelect.value : 'sunny'];
+      const minIsc = iscRef * selectedWeather.minPercent;
+      const maxIsc = iscRef * selectedWeather.maxPercent;
+      const randomIsc = minIsc + Math.random() * (maxIsc - minIsc);
+
+      return randomIsc.toFixed(1);
+    }
+
+    // Remove protocol string row
+    function removeProtocolString(id) {
+      const el = document.getElementById('protocol-string-' + id);
+      if (el) el.remove();
+    }
+
+    // Remove protocol inverter row
+    function removeProtocolInverter(id) {
+      const el = document.getElementById('protocol-inverter-' + id);
+      if (el) el.remove();
+    }
+
+    // Weather update function (from protocol.html)
+    function updateWeatherInRemarks() {
+      const remarksTextarea = document.getElementById('remarks-textarea');
+      const weatherSelect = document.getElementById('weather-condition');
+
+      const weatherData = {
+        'sunny': { text: 'Volle Sonne (klarer Himmel)' },
+        'cloudy': { text: 'Bewölkt / diffuser Himmel' },
+        'heavy-clouds': { text: 'Starke Bewölkung / Schatten' },
+        'low-light': { text: 'Sehr schwaches Licht / Dämmerung' }
+      };
+
+      const selectedWeather = weatherData[weatherSelect.value];
+
+      if (remarksTextarea && remarksTextarea.value.trim() === '') {
+        remarksTextarea.value = `Messung bei: ${selectedWeather.text}`;
+      }
+    }
+
     // Simple client-side app
     (function(){
-      // state
-      const state = {
+      // state - exposed globally as window.state for protocol functions
+      window.state = {
         projectName: 'Mein PV-Projekt',
         moduleConfig: {
           info: '', // Hersteller + Typ
@@ -2182,6 +2793,9 @@
 
       // Set initial LS and cable suggestions
       updateLsSuggestion();
+
+      // Add event listener for print protocol button
+      $('printProtocol').addEventListener('click', printProtocol);
 
     })();
 
