@@ -295,6 +295,9 @@
       <label>Projektname
         <input id="projectName" placeholder="Mein PV-Projekt" />
       </label>
+      <label>Kundenanschrift
+        <textarea id="projectAddress" placeholder="Name&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon" style="width:100%;min-height:80px;padding:8px;border:1px solid #ddd;border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box"></textarea>
+      </label>
       <div style="margin-top:8px;display:flex;gap:6px">
         <button id="newProject" style="flex: 1">Neu</button>
         <button id="saveProject" style="flex: 1">Projekt speichern</button>
@@ -743,6 +746,12 @@
 
     // Populate protocol with project data
     function populateProtocolFromProject() {
+      // Set customer address
+      const customerTextarea = document.querySelector('.protocol-section > div[style*="grid-template-columns:1fr 1fr"] textarea');
+      if (customerTextarea && window.state && window.state.projectAddress) {
+        customerTextarea.value = window.state.projectAddress;
+      }
+
       // Set module designation
       const moduleDesignationEl = document.getElementById('module-designation');
       if (moduleDesignationEl && window.state) {
@@ -862,6 +871,7 @@
       // state - exposed globally as window.state for protocol functions
       window.state = {
         projectName: 'Mein PV-Projekt',
+        projectAddress: '', // Kundenanschrift
         moduleConfig: {
           info: '', // Hersteller + Typ
           wattage: 420 // Nennleistung in W
@@ -1212,6 +1222,8 @@
 
       $('projectName').addEventListener('input',(e)=>{ state.projectName = e.target.value; updateMetaBox(); });
 
+      $('projectAddress').addEventListener('input',(e)=>{ state.projectAddress = e.target.value; });
+
       // module config listeners
       $('moduleInfo').addEventListener('input',(e)=>{ state.moduleConfig.info = e.target.value; renderLists(); });
 
@@ -1257,7 +1269,7 @@
 
       // save/load
       $('saveProject').addEventListener('click', ()=>{
-        const blob = new Blob([JSON.stringify({projectName:state.projectName,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery},null,2)],{type:'application/json'});
+        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery},null,2)],{type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
       });
 
@@ -1270,12 +1282,14 @@
         try{
           const obj = JSON.parse(txt);
           state.projectName = obj.projectName||state.projectName;
+          state.projectAddress = obj.projectAddress||'';
           state.moduleConfig = obj.moduleConfig||{ info: '', wattage: 420 };
           state.solarAreas = obj.solarAreas||[];
           state.inverters = obj.inverters||[];
           state.battery = obj.battery||null;
           collapseAllExceptFirst();
           $('projectName').value = state.projectName;
+          $('projectAddress').value = state.projectAddress;
           $('moduleInfo').value = state.moduleConfig.info;
           $('moduleWattage').value = state.moduleConfig.wattage;
           updateUidCounter(); // Update counter based on loaded IDs
@@ -1584,6 +1598,21 @@
         titleText.setAttribute('font-weight', 'bold');
         titleText.textContent = state.projectName || 'PV-Anlage Schaltplan';
         svg.appendChild(titleText);
+
+        // Add address below title if available
+        if (state.projectAddress) {
+          const addressLines = state.projectAddress.split('\n');
+          addressLines.forEach((line, idx) => {
+            const addressText = document.createElementNS(xmlns, 'text');
+            addressText.setAttribute('x', '500');
+            addressText.setAttribute('y', 40 + 16 + (idx * 11));
+            addressText.setAttribute('text-anchor', 'middle');
+            addressText.setAttribute('font-family', 'Arial');
+            addressText.setAttribute('font-size', '10');
+            addressText.textContent = line.trim();
+            svg.appendChild(addressText);
+          });
+        }
 
         // Data box in upper right corner
         const dataBoxX = width - 200;
