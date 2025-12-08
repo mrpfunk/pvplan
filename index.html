@@ -232,6 +232,12 @@
         page-break-inside: avoid;
       }
 
+      /* Hide scrollbars in remarks textarea */
+      #remarks-textarea {
+        overflow: hidden !important;
+        resize: none !important;
+      }
+
       /* Hide weather and reference inputs during print */
       div[style*="display:flex;gap:15px;margin-bottom:10px;padding:10px;background"] {
         display: none !important;
@@ -239,6 +245,7 @@
 
       input, textarea {
         border-bottom: 1px solid #000 !important;
+        border-radius: 0 !important;
       }
 
       /* Optimize Kunde/Prüfer section */
@@ -247,10 +254,9 @@
       }
 
       .protocol-section > div[style*="grid-template-columns:1fr 1fr"] textarea {
-        min-height: 50px !important;
-        max-height: 50px !important;
+        min-height: 70px !important;
+        max-height: 70px !important;
         border: none !important;
-        border-bottom: 1px solid #000 !important;
         padding: 2px 0 !important;
         background: transparent !important;
         font-size: 9px !important;
@@ -461,7 +467,7 @@
       <div class="protocol-header">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <h1>Prüfprotokoll – Wechselrichter & PV‑Anlage</h1>
-          <div style="text-align:right"><div><strong>Prüfdatum:</strong> _________________</div></div>
+          <div style="text-align:right"><div><strong>Prüfdatum:</strong> <input type="text" id="protocol-test-date" style="width:120px;border:none;border-bottom:2px solid var(--text-color);padding:2px 4px;font-size:12px;box-sizing:border-box"></div></div>
         </div>
       </div>
 
@@ -469,11 +475,11 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
           <div>
             <h3 style="font-size:13px;margin:0 0 8px 0;color:var(--primary-color)">Kunde</h3>
-            <textarea style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box" placeholder="Name&#10;Firma (optional)&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon"></textarea>
+            <textarea id="protocol-customer" style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box" placeholder="Name&#10;Firma (optional)&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon"></textarea>
           </div>
           <div>
             <h3 style="font-size:13px;margin:0 0 8px 0;color:var(--primary-color)">Prüfer</h3>
-            <textarea style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box">Betriebsadresse&#10;Name&#10;Telefon</textarea>
+            <textarea id="protocol-inspector" style="width:100%;min-height:120px;padding:8px;border:2px solid var(--border-color);border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box">Betriebsadresse&#10;Name&#10;Telefon</textarea>
           </div>
         </div>
       </div>
@@ -491,28 +497,28 @@
           <tbody>
             <tr>
               <td>Erdwiderstand</td>
-              <td><input type="text" value="8,9 Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
-              <td>✓ i.O.</td>
+              <td><input id="protocol-earthing-value" type="text" value="8,9 Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
+              <td><input id="protocol-earthing-status" type="text" value="✓ i.O." style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
             </tr>
           </tbody>
         </table>
 
         <h3 class="protocol-section-title">Sichtprüfung der DC-Verkabelung</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px" id="protocol-checks">
           <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
-            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <input id="protocol-check-markings" type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
             <span style="font-size:12px">Kennzeichnungen / Beschilderung</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
-            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <input id="protocol-check-breaker" type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
             <span style="font-size:12px">DC-Freischalter vorhanden und beschriftet</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
-            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <input id="protocol-check-grounding" type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
             <span style="font-size:12px">Potentialausgleich vorhanden und geprüft</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:6px;background:#fafafa;border-radius:3px;cursor:pointer">
-            <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
+            <input id="protocol-check-surge" type="checkbox" checked style="width:16px;height:16px;cursor:pointer">
             <span style="font-size:12px">Überspannungsschutz vorhanden (DC/AC)</span>
           </label>
         </div>
@@ -552,7 +558,7 @@
         <div style="display:flex;gap:15px;margin-bottom:10px;padding:10px;background:#f9fafb;border-radius:4px;border:1px solid var(--border-color)">
           <div style="flex:1">
             <label style="font-size:11px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:4px">Wetterbedingungen</label>
-            <select id="weather-condition" onchange="updateWeatherInRemarks()" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
+            <select id="protocol-weather-condition" onchange="updateWeatherInRemarks()" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
               <option value="sunny">Volle Sonne (klarer Himmel)</option>
               <option value="cloudy">Bewölkt / diffuser Himmel</option>
               <option value="heavy-clouds">Starke Bewölkung / Schatten</option>
@@ -561,7 +567,7 @@
           </div>
           <div style="flex:0 0 150px">
             <label style="font-size:11px;font-weight:600;color:var(--primary-color);display:block;margin-bottom:4px">I<sub>sc</sub> Referenz (A)</label>
-            <input type="number" id="isc-reference" value="10.8" step="0.1" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
+            <input type="number" id="protocol-isc-reference" value="10.8" step="0.1" style="width:100%;padding:6px 8px;border:2px solid var(--border-color);border-radius:3px;font-size:11px;font-family:inherit;box-sizing:border-box">
           </div>
         </div>
 
@@ -671,7 +677,7 @@
     // Print protocol function
     function printProtocol() {
       // Add weather condition to remarks before printing
-      const weatherSelect = document.getElementById('weather-condition');
+      const weatherSelect = document.getElementById('protocol-weather-condition');
       const remarksTextarea = document.getElementById('remarks-textarea');
       let originalRemarks = '';
 
@@ -778,13 +784,21 @@
         const row = document.createElement('tr');
         row.id = 'protocol-string-' + sa.id;
 
+        // Check if there's saved test data for this string
+        const savedTest = window.state.protocol.stringTests?.find(test => test.name === sa.id);
+
         const isc = calculateIscForString();
+        const uocValue = savedTest?.uoc || '';
+        const rIsoValue = savedTest?.rIso || '> 200 MΩ';
+        const iscValue = savedTest?.isc || `${isc} A`;
+        const modulesValue = savedTest?.modules || sa.modules;
+
         row.innerHTML = `
           <td><input type="text" value="${sa.id}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
-          <td><input type="text" value="${sa.modules}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td><input type="text" placeholder="V" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td><input type="text" value="> 999 MΩ" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td><input type="text" value="${isc} A" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${modulesValue}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${uocValue}" placeholder="V" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${rIsoValue}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${iscValue}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
           <td style="text-align:center"><button class="protocol-btn-delete" onclick="removeProtocolString('${sa.id}')" style="padding:4px 8px;font-size:10px">×</button></td>
         `;
         tbody.appendChild(row);
@@ -803,12 +817,21 @@
       window.state.inverters.forEach((inv, idx) => {
         const row = document.createElement('tr');
         row.id = 'protocol-inverter-' + inv.id;
+
+        // Check if there's saved test data for this inverter
+        const savedTest = window.state.protocol.inverterTests?.find(test => test.name === inv.name);
+
+        const impedanceValue = savedTest?.impedance || '';
+        const rIsoValue = savedTest?.rIso || '> 200 MΩ';
+        const rLowValue = savedTest?.rLow || '< 1 Ω';
+        const statusValue = savedTest?.status || '✓ i.O.';
+
         row.innerHTML = `
           <td><input type="text" value="${inv.name}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;font-weight:bold;box-sizing:border-box"></td>
-          <td><input type="text" placeholder="Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td><input type="text" value="> 999 MΩ" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td><input type="text" value="< 1 Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
-          <td>✓ i.O.</td>
+          <td><input type="text" value="${impedanceValue}" placeholder="Ω" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${rIsoValue}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td><input type="text" value="${rLowValue}" style="width:100%;border:none;background:transparent;padding:2px;font-size:12px;box-sizing:border-box"></td>
+          <td>${statusValue}</td>
           <td style="text-align:center"><button class="protocol-btn-delete" onclick="removeProtocolInverter('${inv.id}')" style="padding:4px 8px;font-size:10px">×</button></td>
         `;
         tbody.appendChild(row);
@@ -817,8 +840,8 @@
 
     // Calculate Isc for strings (from protocol.html logic)
     function calculateIscForString() {
-      const weatherSelect = document.getElementById('weather-condition');
-      const iscRef = parseFloat(document.getElementById('isc-reference').value) || 10.8;
+      const weatherSelect = document.getElementById('protocol-weather-condition');
+      const iscRef = parseFloat(document.getElementById('protocol-isc-reference')?.value) || 10.8;
 
       const weatherData = {
         'sunny': { minPercent: 0.898, maxPercent: 1.0 },
@@ -850,7 +873,7 @@
     // Weather update function (from protocol.html)
     function updateWeatherInRemarks() {
       const remarksTextarea = document.getElementById('remarks-textarea');
-      const weatherSelect = document.getElementById('weather-condition');
+      const weatherSelect = document.getElementById('protocol-weather-condition');
 
       const weatherData = {
         'sunny': { text: 'Volle Sonne (klarer Himmel)' },
@@ -879,7 +902,25 @@
         solarAreas: [],
         inverters: [],
         battery: null,
-        meter: { id: 'Z1', name: 'Zweirichtungszähler' }
+        meter: { id: 'Z1', name: 'Zweirichtungszähler' },
+        protocol: {
+          customer: '',
+          inspector: 'Betriebsadresse\nName\nTelefon',
+          earthingValue: '8,9 Ω',
+          earthingStatus: '✓ i.O.',
+          checks: {
+            markings: true,
+            breaker: true,
+            grounding: true,
+            surge: true
+          },
+          moduleDesignation: '',
+          weatherCondition: 'sunny',
+          iscReference: 10.8,
+          remarks: '',
+          inverterTests: [],
+          stringTests: []
+        }
       };
 
       // helpers
@@ -1267,9 +1308,115 @@
         renderLists();
       });
 
+      // Capture protocol data to state
+      function captureProtocolData() {
+        if (!state.protocol) return;
+
+        // Basic fields
+        const customer = $('protocol-customer');
+        const inspector = $('protocol-inspector');
+        const earthingValue = $('protocol-earthing-value');
+        const earthingStatus = $('protocol-earthing-status');
+        const moduleDesignation = $('module-designation');
+        const weatherCondition = $('protocol-weather-condition');
+        const iscReference = $('protocol-isc-reference');
+        const remarks = $('remarks-textarea');
+
+        if (customer) state.protocol.customer = customer.value;
+        if (inspector) state.protocol.inspector = inspector.value;
+        if (earthingValue) state.protocol.earthingValue = earthingValue.value;
+        if (earthingStatus) state.protocol.earthingStatus = earthingStatus.value;
+        if (moduleDesignation) state.protocol.moduleDesignation = moduleDesignation.value;
+        if (weatherCondition) state.protocol.weatherCondition = weatherCondition.value;
+        if (iscReference) state.protocol.iscReference = parseFloat(iscReference.value) || 10.8;
+        if (remarks) state.protocol.remarks = remarks.value;
+
+        // Checkboxes
+        state.protocol.checks.markings = $('protocol-check-markings')?.checked || true;
+        state.protocol.checks.breaker = $('protocol-check-breaker')?.checked || true;
+        state.protocol.checks.grounding = $('protocol-check-grounding')?.checked || true;
+        state.protocol.checks.surge = $('protocol-check-surge')?.checked || true;
+
+        // Inverter tests - collect from table
+        state.protocol.inverterTests = [];
+        const invertersTbody = document.getElementById('inverters-tbody');
+        if (invertersTbody) {
+          const rows = invertersTbody.querySelectorAll('tr');
+          rows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length >= 4) {
+              state.protocol.inverterTests.push({
+                name: inputs[0]?.value || '',
+                impedance: inputs[1]?.value || '',
+                rIso: inputs[2]?.value || '',
+                rLow: inputs[3]?.value || '',
+                status: inputs[4]?.value || ''
+              });
+            }
+          });
+        }
+
+        // String tests - collect from table
+        state.protocol.stringTests = [];
+        const stringsTbody = document.getElementById('strings-tbody');
+        if (stringsTbody) {
+          const rows = stringsTbody.querySelectorAll('tr');
+          rows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length >= 4) {
+              state.protocol.stringTests.push({
+                name: inputs[0]?.value || '',
+                modules: inputs[1]?.value || '',
+                uoc: inputs[2]?.value || '',
+                rIso: inputs[3]?.value || '',
+                isc: inputs[4]?.value || ''
+              });
+            }
+          });
+        }
+      }
+
+      // Restore protocol data from state
+      function restoreProtocolData() {
+        if (!state.protocol) return;
+
+        const customer = $('protocol-customer');
+        const inspector = $('protocol-inspector');
+        const earthingValue = $('protocol-earthing-value');
+        const earthingStatus = $('protocol-earthing-status');
+        const moduleDesignation = $('module-designation');
+        const weatherCondition = $('protocol-weather-condition');
+        const iscReference = $('protocol-isc-reference');
+        const remarks = $('remarks-textarea');
+
+        if (customer) customer.value = state.protocol.customer || '';
+        if (inspector) inspector.value = state.protocol.inspector || 'Betriebsadresse\nName\nTelefon';
+        if (earthingValue) earthingValue.value = state.protocol.earthingValue || '8,9 Ω';
+        if (earthingStatus) earthingStatus.value = state.protocol.earthingStatus || '✓ i.O.';
+        if (moduleDesignation) moduleDesignation.value = state.protocol.moduleDesignation || '';
+        if (weatherCondition) weatherCondition.value = state.protocol.weatherCondition || 'sunny';
+        if (iscReference) iscReference.value = state.protocol.iscReference || 10.8;
+        if (remarks) remarks.value = state.protocol.remarks || '';
+
+        // Restore checkboxes
+        const markingsCheck = $('protocol-check-markings');
+        const breakerCheck = $('protocol-check-breaker');
+        const groundingCheck = $('protocol-check-grounding');
+        const surgeCheck = $('protocol-check-surge');
+
+        if (markingsCheck) markingsCheck.checked = state.protocol.checks.markings;
+        if (breakerCheck) breakerCheck.checked = state.protocol.checks.breaker;
+        if (groundingCheck) groundingCheck.checked = state.protocol.checks.grounding;
+        if (surgeCheck) surgeCheck.checked = state.protocol.checks.surge;
+
+        // Note: Inverter and string tests are dynamically generated,
+        // so we'll restore them through populateProtocolFromProject
+      }
+
       // save/load
       $('saveProject').addEventListener('click', ()=>{
-        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery},null,2)],{type:'application/json'});
+        captureProtocolData();
+        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
       });
 
@@ -1287,6 +1434,9 @@
           state.solarAreas = obj.solarAreas||[];
           state.inverters = obj.inverters||[];
           state.battery = obj.battery||null;
+          if (obj.protocol) {
+            state.protocol = obj.protocol;
+          }
           collapseAllExceptFirst();
           $('projectName').value = state.projectName;
           $('projectAddress').value = state.projectAddress;
@@ -1294,6 +1444,8 @@
           $('moduleWattage').value = state.moduleConfig.wattage;
           updateUidCounter(); // Update counter based on loaded IDs
           renderLists();
+          // Restore protocol data
+          restoreProtocolData();
         }catch(err){ alert('Fehler beim Laden: '+err.message); }
       });
 
@@ -2825,6 +2977,11 @@
 
       // Add event listener for print protocol button
       $('printProtocol').addEventListener('click', printProtocol);
+
+      // Set today's date as default for protocol test date
+      const today = new Date();
+      const dateStr = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      document.getElementById('protocol-test-date').value = dateStr;
 
     })();
 
