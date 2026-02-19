@@ -30,6 +30,12 @@
       <label>Kundenanschrift
         <textarea id="projectAddress" placeholder="Name&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon" style="width:100%;min-height:80px;padding:8px;border:1px solid #ddd;border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box"></textarea>
       </label>
+      <label>SLS-Schalter Größe
+        <select id="slsSize">
+          <option value="35">35A</option>
+          <option value="50">50A</option>
+        </select>
+      </label>
       <div style="margin-top:8px;display:flex;gap:6px">
         <button id="newProject" style="flex: 1">Neu</button>
         <button id="saveProject" style="flex: 1">Projekt speichern</button>
@@ -594,6 +600,7 @@
       window.state = {
         projectName: 'Mein PV-Projekt',
         projectAddress: '', // Kundenanschrift
+        slsSize: 35, // SLS-Schalter Größe (35A oder 50A)
         moduleConfig: {
           info: '', // Hersteller + Typ
           wattage: 420 // Nennleistung in W
@@ -877,6 +884,8 @@
 
       $('projectAddress').addEventListener('input',(e)=>{ state.projectAddress = e.target.value; });
 
+      $('slsSize').addEventListener('change',(e)=>{ state.slsSize = Number(e.target.value); });
+
       // module config listeners
       $('moduleInfo').addEventListener('input',(e)=>{ state.moduleConfig.info = e.target.value; renderLists(); });
 
@@ -1028,7 +1037,8 @@
       // save/load
       $('saveProject').addEventListener('click', ()=>{
         captureProtocolData();
-        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
+        state.slsSize = Number($('slsSize').value) || 35;
+        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,slsSize:state.slsSize,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
       });
 
@@ -1042,6 +1052,7 @@
           const obj = JSON.parse(txt);
           state.projectName = obj.projectName||state.projectName;
           state.projectAddress = obj.projectAddress||'';
+          state.slsSize = obj.slsSize || 35;
           state.moduleConfig = obj.moduleConfig||{ info: '', wattage: 420 };
           state.solarAreas = obj.solarAreas||[];
           state.inverters = obj.inverters||[];
@@ -1052,6 +1063,7 @@
           collapseAllExceptFirst();
           $('projectName').value = state.projectName;
           $('projectAddress').value = state.projectAddress;
+          $('slsSize').value = state.slsSize;
           $('moduleInfo').value = state.moduleConfig.info;
           $('moduleWattage').value = state.moduleConfig.wattage;
           updateUidCounter(); // Update counter based on loaded IDs
@@ -1638,7 +1650,7 @@
           if (hasManySolarAreas) {
             // Position oberhalb der busLineY mit mehr Abstand
             // RCD und LS auf der Notstrom-Leitung, dann Umschalter
-            rcdX = emergencyInv._layoutX + 120;
+            rcdX = emergencyInv._layoutX + 150;
             lsEmergencyX = rcdX + 50;
             switchX = lsEmergencyX + 70;
             switchY = busLineY - 80; // Weit oberhalb der busLineY
@@ -1646,7 +1658,7 @@
             houseY = switchY - 10;
           } else {
             // Normale Position bei <= 3 Solarflächen
-            rcdX = emergencyInv._layoutX + 120;
+            rcdX = emergencyInv._layoutX + 150;
             lsEmergencyX = rcdX + 50;
             switchX = lsEmergencyX + 70;
             switchY = emergencyInv._layoutY - 15; // Auf Höhe der Notstrom-Leitung
@@ -1730,22 +1742,22 @@
             // Bei mehr als 3 Solarflächen: L-Route - nach oben, dann nach rechts
             emergencyY = emergencyInv._layoutY - 15;
 
-            // 1. Horizontale Linie am Wechselrichter Ausgang
+            // 1. Horizontale Linie am Wechselrichter Ausgang (länger, damit Label nicht durchkreuzt wird)
             const emergencyLineStart = document.createElementNS(xmlns, 'line');
             emergencyLineStart.setAttribute('x1', emergencyInv._layoutX + 30);
             emergencyLineStart.setAttribute('y1', emergencyY);
-            emergencyLineStart.setAttribute('x2', emergencyInv._layoutX + 80);
+            emergencyLineStart.setAttribute('x2', emergencyInv._layoutX + 120);
             emergencyLineStart.setAttribute('y2', emergencyY);
             emergencyLineStart.setAttribute('stroke', '#ff0000');
             emergencyLineStart.setAttribute('stroke-width', '3');
             emergencyLineStart.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(emergencyLineStart);
 
-            // 2. Vertikale Linie nach oben
+            // 2. Vertikale Linie nach oben (jetzt weiter rechts, um Label nicht zu durchkreuzen)
             const emergencyLine1 = document.createElementNS(xmlns, 'line');
-            emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 80);
+            emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 120);
             emergencyLine1.setAttribute('y1', emergencyY);
-            emergencyLine1.setAttribute('x2', emergencyInv._layoutX + 80);
+            emergencyLine1.setAttribute('x2', emergencyInv._layoutX + 120);
             emergencyLine1.setAttribute('y2', switchY);
             emergencyLine1.setAttribute('stroke', '#ff0000');
             emergencyLine1.setAttribute('stroke-width', '3');
@@ -1754,7 +1766,7 @@
 
             // 3. Linie zum RCD
             const lineToRcd = document.createElementNS(xmlns, 'line');
-            lineToRcd.setAttribute('x1', emergencyInv._layoutX + 80);
+            lineToRcd.setAttribute('x1', emergencyInv._layoutX + 120);
             lineToRcd.setAttribute('y1', switchY);
             lineToRcd.setAttribute('x2', rcdX - 10);
             lineToRcd.setAttribute('y2', switchY);
@@ -1767,7 +1779,7 @@
             // Normale direkte Route bei <= 3 Solarflächen
             emergencyY = emergencyInv._layoutY - 15;
 
-            // Linie vom WR zum RCD
+            // Verlängerte Linie vom WR zum RCD für bessere Label-Sichtbarkeit
             const lineToRcd = document.createElementNS(xmlns, 'line');
             lineToRcd.setAttribute('x1', emergencyInv._layoutX + 30);
             lineToRcd.setAttribute('y1', emergencyY);
@@ -1999,7 +2011,7 @@
         slsInfo.setAttribute('font-family', 'Arial');
         slsInfo.setAttribute('font-size', '8');
         slsInfo.setAttribute('fill', '#222');
-        slsInfo.textContent = '35A';
+        slsInfo.textContent = (state.slsSize || 35) + 'A';
         svg.appendChild(slsInfo);
 
         // Connection from SLS to HAK
