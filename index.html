@@ -1129,7 +1129,7 @@
         const dataBoxX = width - 200;
         const dataBoxY = 20;
         const dataBoxWidth = 180;
-        const dataBoxHeight = 120;
+        const dataBoxHeight = 135;
 
         // Data box background
         const dataBoxBg = document.createElementNS(xmlns, 'rect');
@@ -1285,6 +1285,25 @@
         emergencyValue.textContent = emergencyPowerStatus ? 'Ja' : 'Nein';
         svg.appendChild(emergencyValue);
 
+        // SLS-Schalter Größe
+        const slsInfoLabel = document.createElementNS(xmlns, 'text');
+        slsInfoLabel.setAttribute('x', dataBoxX + 10);
+        slsInfoLabel.setAttribute('y', nextY + 15);
+        slsInfoLabel.setAttribute('font-family', 'Arial');
+        slsInfoLabel.setAttribute('font-size', '9');
+        slsInfoLabel.textContent = 'SLS-Schalter:';
+        svg.appendChild(slsInfoLabel);
+
+        const slsInfoValue = document.createElementNS(xmlns, 'text');
+        slsInfoValue.setAttribute('x', dataBoxX + dataBoxWidth - 10);
+        slsInfoValue.setAttribute('y', nextY + 15);
+        slsInfoValue.setAttribute('text-anchor', 'end');
+        slsInfoValue.setAttribute('font-family', 'Arial');
+        slsInfoValue.setAttribute('font-size', '9');
+        slsInfoValue.setAttribute('font-weight', 'bold');
+        slsInfoValue.textContent = `${state.slsSize || 35}A`;
+        svg.appendChild(slsInfoValue);
+
         // Draw PV areas - vertically arranged on the left
         state.solarAreas.forEach((sa, index) => {
           const x = pvX;
@@ -1427,7 +1446,7 @@
         const meterY = busLineY; // Meter at same height as bus line
 
         // Draw main AC bus line (Sammelschiene) to meter - parallel connection
-        const busStartX = invX + 115; // Start even further to the right to accommodate moved LS
+        const busStartX = invX + 85; // Vertical bus line position
         const busEndX = meterX - 30;
 
         const mainBusLine = document.createElementNS(xmlns, 'line');
@@ -1443,7 +1462,7 @@
         state.inverters.forEach((inv, index) => {
           const x = invX;
           const y = inv._layoutY; // Use the calculated center position
-          const lsX = x + 90; // Position LS even further to the right for better spacing
+          const lsX = x + 60; // Position LS closer to inverter
 
           // Use configured values or calculate as fallback
           const nominalCurrent = inv.ls_amps || calculateNominalCurrent(inv.ac_power_w, inv.phases);
@@ -1462,7 +1481,7 @@
           invToLsLine.setAttribute('stroke-width', '3');
           svg.appendChild(invToLsLine);          // Cable cross-section label (between inverter and LS)
           const cableLabel = document.createElementNS(xmlns, 'text');
-          cableLabel.setAttribute('x', x + 60); // Adjusted position for new LS location
+          cableLabel.setAttribute('x', x + 50); // Adjusted position for new LS location
           cableLabel.setAttribute('y', acLineY - 8);
           cableLabel.setAttribute('text-anchor', 'middle');
           cableLabel.setAttribute('font-family', 'Arial');
@@ -1748,7 +1767,7 @@
             emergencyLineStart.setAttribute('y1', emergencyY);
             emergencyLineStart.setAttribute('x2', emergencyInv._layoutX + 120);
             emergencyLineStart.setAttribute('y2', emergencyY);
-            emergencyLineStart.setAttribute('stroke', '#ff0000');
+            emergencyLineStart.setAttribute('stroke', '#ff9900');
             emergencyLineStart.setAttribute('stroke-width', '3');
             emergencyLineStart.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(emergencyLineStart);
@@ -1759,7 +1778,7 @@
             emergencyLine1.setAttribute('y1', emergencyY);
             emergencyLine1.setAttribute('x2', emergencyInv._layoutX + 120);
             emergencyLine1.setAttribute('y2', switchY);
-            emergencyLine1.setAttribute('stroke', '#ff0000');
+            emergencyLine1.setAttribute('stroke', '#ff9900');
             emergencyLine1.setAttribute('stroke-width', '3');
             emergencyLine1.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(emergencyLine1);
@@ -1770,7 +1789,7 @@
             lineToRcd.setAttribute('y1', switchY);
             lineToRcd.setAttribute('x2', rcdX - 10);
             lineToRcd.setAttribute('y2', switchY);
-            lineToRcd.setAttribute('stroke', '#ff0000');
+            lineToRcd.setAttribute('stroke', '#ff9900');
             lineToRcd.setAttribute('stroke-width', '3');
             lineToRcd.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(lineToRcd);
@@ -1785,7 +1804,7 @@
             lineToRcd.setAttribute('y1', emergencyY);
             lineToRcd.setAttribute('x2', rcdX - 10);
             lineToRcd.setAttribute('y2', emergencyY);
-            lineToRcd.setAttribute('stroke', '#ff0000');
+            lineToRcd.setAttribute('stroke', '#ff9900');
             lineToRcd.setAttribute('stroke-width', '3');
             lineToRcd.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(lineToRcd);
@@ -1793,7 +1812,7 @@
 
           // RCD Symbol (using factory function from js/symbols/rcd.js)
           const rcdY = hasManySolarAreas ? switchY : emergencyY;
-          const rcdGroup = window.createRCD({ x: rcdX, y: rcdY, rotation: 90, stroke: '#ff0000' });
+          const rcdGroup = window.createRCD({ x: rcdX, y: rcdY, rotation: 90, stroke: '#000' });
           svg.appendChild(rcdGroup);
 
           // RCD Label
@@ -1803,7 +1822,7 @@
           rcdLabel.setAttribute('text-anchor', 'middle');
           rcdLabel.setAttribute('font-family', 'Arial');
           rcdLabel.setAttribute('font-size', '8');
-          rcdLabel.setAttribute('fill', '#ff0000');
+          rcdLabel.setAttribute('fill', '#000');
           rcdLabel.setAttribute('font-weight', 'bold');
           rcdLabel.textContent = 'RCD';
           svg.appendChild(rcdLabel);
@@ -1815,7 +1834,7 @@
           rcdInfo.setAttribute('text-anchor', 'middle');
           rcdInfo.setAttribute('font-family', 'Arial');
           rcdInfo.setAttribute('font-size', '7');
-          rcdInfo.setAttribute('fill', '#ff0000');
+          rcdInfo.setAttribute('fill', '#000');
           rcdInfo.textContent = '40A/300mA';
           svg.appendChild(rcdInfo);
 
@@ -1825,17 +1844,13 @@
           rcdToLsLine.setAttribute('y1', rcdY);
           rcdToLsLine.setAttribute('x2', lsEmergencyX - 10);
           rcdToLsLine.setAttribute('y2', rcdY);
-          rcdToLsLine.setAttribute('stroke', '#ff0000');
+          rcdToLsLine.setAttribute('stroke', '#ff9900');
           rcdToLsLine.setAttribute('stroke-width', '3');
           rcdToLsLine.setAttribute('stroke-dasharray', '10,5');
           svg.appendChild(rcdToLsLine);
 
-          // LS Symbol auf Notstrom-Leitung (using factory function, but with red stroke)
+          // LS Symbol auf Notstrom-Leitung (using factory function, black stroke)
           const lsEmergencyGroup = window.createCircuitBreaker({ x: lsEmergencyX, y: rcdY, rotation: 90 });
-          // Alle Strokes auf rot ändern
-          lsEmergencyGroup.querySelectorAll('*').forEach(el => {
-            if (el.getAttribute('stroke')) el.setAttribute('stroke', '#ff0000');
-          });
           svg.appendChild(lsEmergencyGroup);
 
           // LS Label
@@ -1845,7 +1860,7 @@
           lsEmergencyLabel.setAttribute('text-anchor', 'middle');
           lsEmergencyLabel.setAttribute('font-family', 'Arial');
           lsEmergencyLabel.setAttribute('font-size', '8');
-          lsEmergencyLabel.setAttribute('fill', '#ff0000');
+          lsEmergencyLabel.setAttribute('fill', '#000');
           lsEmergencyLabel.setAttribute('font-weight', 'bold');
           lsEmergencyLabel.textContent = 'LS';
           svg.appendChild(lsEmergencyLabel);
@@ -1857,7 +1872,7 @@
           lsEmergencyInfo.setAttribute('text-anchor', 'middle');
           lsEmergencyInfo.setAttribute('font-family', 'Arial');
           lsEmergencyInfo.setAttribute('font-size', '7');
-          lsEmergencyInfo.setAttribute('fill', '#ff0000');
+          lsEmergencyInfo.setAttribute('fill', '#000');
           lsEmergencyInfo.textContent = '32A';
           svg.appendChild(lsEmergencyInfo);
 
@@ -1867,7 +1882,7 @@
           lsToSwitchLine.setAttribute('y1', rcdY);
           lsToSwitchLine.setAttribute('x2', switchX - 25);
           lsToSwitchLine.setAttribute('y2', switchY);
-          lsToSwitchLine.setAttribute('stroke', '#ff0000');
+          lsToSwitchLine.setAttribute('stroke', '#ff9900');
           lsToSwitchLine.setAttribute('stroke-width', '3');
           lsToSwitchLine.setAttribute('stroke-dasharray', '10,5');
           svg.appendChild(lsToSwitchLine);
@@ -1879,7 +1894,7 @@
           emergencyLabel.setAttribute('text-anchor', 'start');
           emergencyLabel.setAttribute('font-family', 'Arial');
           emergencyLabel.setAttribute('font-size', '9');
-          emergencyLabel.setAttribute('fill', '#ff0000');
+          emergencyLabel.setAttribute('fill', '#ff9900');
           emergencyLabel.setAttribute('font-weight', 'bold');
           emergencyLabel.textContent = 'Notstrom';
           svg.appendChild(emergencyLabel);
