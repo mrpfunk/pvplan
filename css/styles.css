@@ -1,0 +1,321 @@
+/* PV Schaltplan Generator - Main Styles */
+
+:root{--accent:#1f6feb;--muted:#666}
+body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;height:100vh;display:flex;gap:12px}
+header{padding:10px 14px;background:#f4f6fb;border-bottom:1px solid #e6e9f2}
+.sidebar{width:380px;min-width:360px;padding:12px;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;border-right:1px solid #eceef6}
+.main{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;min-height:0}
+h2{margin:6px 0}
+label{display:block;margin-top:8px;font-size:13px}
+input,select{width:100%;max-width:100%;padding:8px;margin-top:4px;border:1px solid #d8dbe9;border-radius:6px;box-sizing:border-box}
+button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;max-width:100%;box-sizing:border-box;min-height:36px;font-size:13px;transition:all 0.2s ease}
+button:hover{background:#1454d6;transform:translateY(-1px)}
+.danger{background:#dc2626;color:#fff;border:1px solid #b91c1c;text-shadow:0 0 3px rgba(0,0,0,0.8)}
+.danger:hover{background:#b91c1c;border-color:#991b1b}
+.btn-small{padding:4px 8px;min-height:auto;font-size:11px}
+.btn-small[title]{padding:4px 6px;min-width:28px;font-size:14px;text-shadow:0 0 2px rgba(0,0,0,0.5)}
+.muted{color:var(--muted);font-size:13px}
+.list{margin-top:8px;border-top:1px dashed #e3e6f2;padding-top:8px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{padding:6px;text-align:left;border-bottom:1px solid #f0f2fa;font-size:13px;word-wrap:break-word;overflow:hidden}
+
+/* Spezifische Spaltenbreiten für Solarflächen-Tabelle */
+#saTable{table-layout:fixed}
+#saTable th:nth-child(1),#saTable td:nth-child(1){width:25px}
+#saTable th:nth-child(2),#saTable td:nth-child(2){width:auto}
+#saTable th:nth-child(3),#saTable td:nth-child(3){width:45px}
+#saTable th:nth-child(4),#saTable td:nth-child(4){width:49px}
+#saTable th:nth-child(5),#saTable td:nth-child(5){width:25px;text-align:right}
+.controls{display:flex;gap:8px;align-items:center}
+.preview{flex:1;border:1px solid #e6e9f2;border-radius:8px;padding:8px;background:#fff;overflow:auto;display:flex;flex-direction:column;min-height:0}
+.svg-container{width:100%;flex:1;display:flex;justify-content:center;align-items:flex-start;min-height:0}
+.small{font-size:12px}
+.note{background:#fff8e6;padding:8px;border-radius:6px;font-size:13px}
+footer{padding:8px;border-top:1px solid #eceef6;margin-top:auto}
+.row{display:flex;gap:8px;flex:1;min-height:0}
+.half{flex:1}
+input[type=file]{padding:6px}
+
+/* Karten-Layout für Wechselrichter */
+.cards-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-top:8px}
+.card{background:#fff;border:1px solid #e6e9f2;border-radius:8px;padding:12px;font-size:13px;position:relative}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:600}
+.card-content{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-bottom:8px}
+.card-field{display:flex;flex-direction:column}
+.card-field-label{color:var(--muted);font-size:11px;margin-bottom:2px}
+.card-field-value{font-weight:500}
+.card-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid #f0f2fa}
+.card-full-width{grid-column:1/-1}
+
+/* Kollapsible Sektionen */
+.section-header{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px 8px 0 0;padding:12px;margin:12px 0 0 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s ease;font-weight:600;color:#334155;position:relative;z-index:1}
+.section-header:hover{background:#f1f5f9;transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+.section-header.collapsed{margin-bottom:12px;border-radius:8px;border-bottom:1px solid #e2e8f0}
+.section-content{overflow:visible;transition:max-height 0.3s ease;max-height:none;background:#fafbfc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:16px;margin:0 0 12px 0;box-shadow:inset 0 1px 3px rgba(0,0,0,0.02)}
+.section-content:not(.collapsed){max-height:none}
+.section-content.collapsed{overflow:hidden;max-height:0}
+.section-content.collapsed{max-height:0;padding:0;margin:0;border:none;box-shadow:none}
+.chevron{transition:transform 0.2s ease;font-size:14px;color:#64748b;user-select:none;pointer-events:none}
+.chevron.collapsed{transform:rotate(-90deg)}
+.section-title{font-size:16px;margin:0}
+.section-content label{margin-top:12px}
+.section-content label:first-child{margin-top:0}
+.section-content > div{margin-top:0}
+.section-content .list{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-top:12px}
+.section-content button{margin-top:0}
+
+/* Tab Navigation */
+.tab-navigation{display:flex;gap:8px;margin-bottom:12px;border-bottom:2px solid #e6e9f2;align-items:center}
+.tab-btn{background:transparent;color:var(--muted);border:none;padding:12px 16px;border-radius:0;cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;margin:0;min-height:auto;transition:all 0.2s ease;transform:none}
+.tab-btn:hover{background:transparent;color:#334155;transform:none}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{flex:1;display:flex;flex-direction:column;min-height:0}
+.tab-content:not(.active){display:none}
+
+hr{display:none}
+
+/* Protocol Styles */
+.protocol-header{background:linear-gradient(135deg,var(--primary-color) 0%,var(--secondary-color) 100%);color:#fff;padding:20px 25px;margin:-16px -16px 20px -16px;border-radius:0 0 6px 6px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.protocol-header h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-0.5px}
+.protocol-section{margin-bottom:18px;page-break-inside:avoid}
+.protocol-section-title{background:var(--header-bg);color:var(--primary-color);padding:8px 12px;margin:0 0 10px 0;font-size:15px;font-weight:600;border-left:3px solid var(--secondary-color);border-radius:3px}
+.protocol-info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;font-size:12px}
+.protocol-info div{background:rgba(255,255,255,0.1);padding:6px 10px;border-radius:3px}
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px}
+.info-field{display:flex;flex-direction:column;padding:6px 8px;background:#fafafa;border-radius:3px;border:1px solid var(--border-color)}
+.info-field label{font-weight:600;font-size:10px;color:var(--primary-color);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px}
+.info-field input,.info-field textarea{border:none;border-bottom:1px solid var(--border-color);background:#fff;padding:5px 6px;font-size:13px;font-family:inherit;transition:border-color 0.3s;width:100%;box-sizing:border-box}
+.info-field input:focus,.info-field textarea:focus{outline:none;border-bottom-color:var(--secondary-color)}
+.protocol-table{width:100%;border-collapse:collapse;margin-top:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-radius:4px;overflow:hidden;font-size:12px}
+.protocol-table thead{background:var(--primary-color);color:#fff}
+.protocol-table th{padding:7px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.3px}
+.protocol-table td{padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px}
+.protocol-table tbody tr:nth-child(even){background:#f9fafb}
+.protocol-table tbody tr:hover{background:#f3f4f6}
+.protocol-table tbody tr:last-child td{border-bottom:none}
+.subsection-title{color:var(--primary-color);font-size:14px;font-weight:600;margin:12px 0 8px 0;padding-bottom:3px;border-bottom:2px solid var(--border-color)}
+.protocol-btn{background:var(--secondary-color);color:#fff;border:none;padding:8px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.3s;font-family:inherit}
+.protocol-btn:hover{background:var(--primary-color)}
+.protocol-btn-delete{background:#ef4444;padding:4px 10px;font-size:11px}
+.protocol-btn-delete:hover{background:#dc2626}
+
+/* Protocol CSS Variables */
+#tab-protokoll {
+  --primary-color:#1e3a8a;
+  --secondary-color:#3b82f6;
+  --border-color:#d1d5db;
+  --header-bg:#f3f4f6;
+  --text-color:#1f2937;
+}
+
+/* Print Styles for Protocol */
+@media print {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    padding: 15px;
+    margin: 0;
+    background: white;
+    font-size: 11px;
+    max-width: 100%;
+  }
+
+  @page {
+    margin: 12mm;
+    size: A4 portrait;
+  }
+
+  /* Hide sidebar and header */
+  .sidebar {
+    display: none !important;
+  }
+
+  .main {
+    width: 100% !important;
+    max-width: 100%;
+    padding: 0 !important;
+    gap: 0;
+    flex: none;
+  }
+
+  .main > header {
+    display: none !important;
+  }
+
+  .tab-btn {
+    display: none !important;
+  }
+
+  /* Hide add buttons for inverters and strings */
+  button[onclick*="addInverter"],
+  button[onclick*="addString"] {
+    display: none !important;
+  }
+
+  /* Tab content optimization */
+  #tab-protokoll {
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    flex: none;
+  }
+
+  #tab-schaltplan {
+    display: none !important;
+  }
+
+  .row {
+    display: none;
+  }
+
+  /* Protocol header */
+  .protocol-header {
+    margin: -15px -15px 15px -15px;
+    padding: 15px 20px;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .protocol-header h1 {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .protocol-section {
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+  }
+
+  .protocol-section-title {
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .subsection-title {
+    font-size: 12px;
+    margin: 10px 0 6px 0;
+  }
+
+  .info-grid {
+    gap: 8px;
+  }
+
+  .info-field {
+    padding: 5px 7px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .info-field label {
+    font-size: 9px;
+  }
+
+  .info-field input,
+  .info-field textarea {
+    border-bottom: 1px solid #000 !important;
+    font-size: 11px;
+    padding: 4px 5px;
+    background: transparent !important;
+  }
+
+  .protocol-table {
+    margin-top: 6px;
+    font-size: 10px;
+    box-shadow: none;
+  }
+
+  .protocol-table th {
+    padding: 5px 6px;
+    font-size: 9px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .protocol-table td {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .protocol-table tbody tr:nth-child(even) {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide action columns */
+  .protocol-table th:last-child,
+  .protocol-table td:last-child {
+    display: none;
+  }
+
+  /* Hide remarks section by default */
+  #remarks-section {
+    display: none;
+  }
+
+  /* Show remarks if filled */
+  #remarks-section:has(textarea:not(:placeholder-shown)) {
+    display: block;
+    page-break-inside: avoid;
+  }
+
+  /* Hide scrollbars in remarks textarea */
+  #remarks-textarea {
+    overflow: hidden !important;
+    resize: none !important;
+  }
+
+  /* Hide weather and reference inputs during print */
+  div[style*="display:flex;gap:15px;margin-bottom:10px;padding:10px;background"] {
+    display: none !important;
+  }
+
+  input, textarea {
+    border-bottom: 1px solid #000 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Optimize Kunde/Prüfer section */
+  .protocol-section > div[style*="grid-template-columns:1fr 1fr"] {
+    gap: 10px !important;
+  }
+
+  .protocol-section > div[style*="grid-template-columns:1fr 1fr"] textarea {
+    min-height: 70px !important;
+    max-height: 70px !important;
+    border: none !important;
+    padding: 2px 0 !important;
+    background: transparent !important;
+    font-size: 9px !important;
+    resize: none !important;
+    overflow: hidden !important;
+  }
+
+  .protocol-section > div[style*="grid-template-columns:1fr 1fr"] h3 {
+    font-size: 11px !important;
+    margin: 0 0 4px 0 !important;
+  }
+
+  /* Optimize checkboxes spacing */
+  div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] {
+    gap: 4px !important;
+  }
+
+  div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] label {
+    padding: 2px 4px !important;
+    margin: 0 !important;
+    font-size: 10px !important;
+  }
+
+  div[style*="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"] input[type="checkbox"] {
+    width: 12px !important;
+    height: 12px !important;
+    margin: 0 !important;
+  }
+}
