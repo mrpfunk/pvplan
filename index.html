@@ -13,6 +13,7 @@
   <script src="js/symbols/meter.js"></script>
   <script src="js/symbols/pv-module.js"></script>
   <script src="js/symbols/inverter.js"></script>
+  <script src="js/symbols/rcd.js"></script>
   <!-- Calculation module -->
   <script src="js/calculations.js"></script>
 </head>
@@ -1633,16 +1634,21 @@
 
           // Bei mehr als 3 Solarflächen: Umschalter und Haus oberhalb der busLineY positionieren
           const hasManySolarAreas = emergencyInv.assignedSolarAreaIds.length > 3;
-          let switchX, switchY, houseX, houseY;
+          let switchX, switchY, houseX, houseY, rcdX, lsEmergencyX;
           if (hasManySolarAreas) {
             // Position oberhalb der busLineY mit mehr Abstand
-            switchX = emergencyInv._layoutX + 160;
+            // RCD und LS auf der Notstrom-Leitung, dann Umschalter
+            rcdX = emergencyInv._layoutX + 120;
+            lsEmergencyX = rcdX + 50;
+            switchX = lsEmergencyX + 70;
             switchY = busLineY - 80; // Weit oberhalb der busLineY
             houseX = switchX + 80;
             houseY = switchY - 10;
           } else {
             // Normale Position bei <= 3 Solarflächen
-            switchX = emergencyInv._layoutX + 160;
+            rcdX = emergencyInv._layoutX + 120;
+            lsEmergencyX = rcdX + 50;
+            switchX = lsEmergencyX + 70;
             switchY = emergencyInv._layoutY - 15; // Auf Höhe der Notstrom-Leitung
             houseX = switchX + 80;
             houseY = switchY - 10;
@@ -1719,11 +1725,10 @@
           svg.appendChild(switchOutCircle);
 
           let emergencyY;
-          // Notstrom-Leitung vom Wechselrichter zum Umschalter (Position 1 - links)
+          // Notstrom-Leitung vom Wechselrichter über RCD und LS zum Umschalter
           if (hasManySolarAreas) {
-            // Bei mehr als 3 Solarflächen: Einfache L-Route - nach oben, dann nach rechts
-            emergencyY = emergencyInv._layoutY - 15; // Startpunkt oberhalb der normalen AC-Leitung
-            const routeOverY = busLineY - 100; // Höhe für die Route über busLineY
+            // Bei mehr als 3 Solarflächen: L-Route - nach oben, dann nach rechts
+            emergencyY = emergencyInv._layoutY - 15;
 
             // 1. Horizontale Linie am Wechselrichter Ausgang
             const emergencyLineStart = document.createElementNS(xmlns, 'line');
@@ -1736,7 +1741,7 @@
             emergencyLineStart.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(emergencyLineStart);
 
-            // 2. Vertikale Linie nach oben über busLineY
+            // 2. Vertikale Linie nach oben
             const emergencyLine1 = document.createElementNS(xmlns, 'line');
             emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 80);
             emergencyLine1.setAttribute('y1', emergencyY);
@@ -1747,55 +1752,125 @@
             emergencyLine1.setAttribute('stroke-dasharray', '10,5');
             svg.appendChild(emergencyLine1);
 
-            // 3. Horizontale Linie nach rechts zum Umschalter
-            const emergencyLine2 = document.createElementNS(xmlns, 'line');
-            emergencyLine2.setAttribute('x1', emergencyInv._layoutX + 80);
-            emergencyLine2.setAttribute('y1', switchY);
-            emergencyLine2.setAttribute('x2', switchX - 25);
-            emergencyLine2.setAttribute('y2', switchY);
-            emergencyLine2.setAttribute('stroke', '#ff0000');
-            emergencyLine2.setAttribute('stroke-width', '3');
-            emergencyLine2.setAttribute('stroke-dasharray', '10,5');
-            svg.appendChild(emergencyLine2);
+            // 3. Linie zum RCD
+            const lineToRcd = document.createElementNS(xmlns, 'line');
+            lineToRcd.setAttribute('x1', emergencyInv._layoutX + 80);
+            lineToRcd.setAttribute('y1', switchY);
+            lineToRcd.setAttribute('x2', rcdX - 10);
+            lineToRcd.setAttribute('y2', switchY);
+            lineToRcd.setAttribute('stroke', '#ff0000');
+            lineToRcd.setAttribute('stroke-width', '3');
+            lineToRcd.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(lineToRcd);
 
-            // Junction points für bessere Sichtbarkeit
-            const junction1 = document.createElementNS(xmlns, 'circle');
-            junction1.setAttribute('cx', emergencyInv._layoutX + 80);
-            junction1.setAttribute('cy', switchY);
-            junction1.setAttribute('r', '2');
-            junction1.setAttribute('fill', '#ff0000');
-            svg.appendChild(junction1);
-
-            const junction2 = document.createElementNS(xmlns, 'circle');
-            junction2.setAttribute('cx', switchX - 25);
-            junction2.setAttribute('cy', switchY);
-            junction2.setAttribute('r', '2');
-            junction2.setAttribute('fill', '#ff0000');
-            svg.appendChild(junction2);
           } else {
             // Normale direkte Route bei <= 3 Solarflächen
-            emergencyY = emergencyInv._layoutY - 15; // Oberhalb der normalen AC-Leitung
+            emergencyY = emergencyInv._layoutY - 15;
 
-            const emergencyLine1 = document.createElementNS(xmlns, 'line');
-            emergencyLine1.setAttribute('x1', emergencyInv._layoutX + 30);
-            emergencyLine1.setAttribute('y1', emergencyY);
-            emergencyLine1.setAttribute('x2', switchX - 25);
-            emergencyLine1.setAttribute('y2', emergencyY);
-            emergencyLine1.setAttribute('stroke', '#ff0000');
-            emergencyLine1.setAttribute('stroke-width', '3');
-            emergencyLine1.setAttribute('stroke-dasharray', '10,5');
-            svg.appendChild(emergencyLine1);
-
-            const emergencyLine2 = document.createElementNS(xmlns, 'line');
-            emergencyLine2.setAttribute('x1', switchX - 25);
-            emergencyLine2.setAttribute('y1', emergencyY);
-            emergencyLine2.setAttribute('x2', switchX - 25);
-            emergencyLine2.setAttribute('y2', switchY);
-            emergencyLine2.setAttribute('stroke', '#ff0000');
-            emergencyLine2.setAttribute('stroke-width', '3');
-            emergencyLine2.setAttribute('stroke-dasharray', '10,5');
-            svg.appendChild(emergencyLine2);
+            // Linie vom WR zum RCD
+            const lineToRcd = document.createElementNS(xmlns, 'line');
+            lineToRcd.setAttribute('x1', emergencyInv._layoutX + 30);
+            lineToRcd.setAttribute('y1', emergencyY);
+            lineToRcd.setAttribute('x2', rcdX - 10);
+            lineToRcd.setAttribute('y2', emergencyY);
+            lineToRcd.setAttribute('stroke', '#ff0000');
+            lineToRcd.setAttribute('stroke-width', '3');
+            lineToRcd.setAttribute('stroke-dasharray', '10,5');
+            svg.appendChild(lineToRcd);
           }
+
+          // RCD Symbol (using factory function from js/symbols/rcd.js)
+          const rcdY = hasManySolarAreas ? switchY : emergencyY;
+          const rcdGroup = window.createRCD({ x: rcdX, y: rcdY, rotation: 90, stroke: '#ff0000' });
+          svg.appendChild(rcdGroup);
+
+          // RCD Label
+          const rcdLabel = document.createElementNS(xmlns, 'text');
+          rcdLabel.setAttribute('x', rcdX);
+          rcdLabel.setAttribute('y', rcdY - 18);
+          rcdLabel.setAttribute('text-anchor', 'middle');
+          rcdLabel.setAttribute('font-family', 'Arial');
+          rcdLabel.setAttribute('font-size', '8');
+          rcdLabel.setAttribute('fill', '#ff0000');
+          rcdLabel.setAttribute('font-weight', 'bold');
+          rcdLabel.textContent = 'RCD';
+          svg.appendChild(rcdLabel);
+
+          // RCD Info
+          const rcdInfo = document.createElementNS(xmlns, 'text');
+          rcdInfo.setAttribute('x', rcdX);
+          rcdInfo.setAttribute('y', rcdY - 10);
+          rcdInfo.setAttribute('text-anchor', 'middle');
+          rcdInfo.setAttribute('font-family', 'Arial');
+          rcdInfo.setAttribute('font-size', '7');
+          rcdInfo.setAttribute('fill', '#ff0000');
+          rcdInfo.textContent = '40A/300mA';
+          svg.appendChild(rcdInfo);
+
+          // Linie vom RCD zum LS
+          const rcdToLsLine = document.createElementNS(xmlns, 'line');
+          rcdToLsLine.setAttribute('x1', rcdX + 10);
+          rcdToLsLine.setAttribute('y1', rcdY);
+          rcdToLsLine.setAttribute('x2', lsEmergencyX - 10);
+          rcdToLsLine.setAttribute('y2', rcdY);
+          rcdToLsLine.setAttribute('stroke', '#ff0000');
+          rcdToLsLine.setAttribute('stroke-width', '3');
+          rcdToLsLine.setAttribute('stroke-dasharray', '10,5');
+          svg.appendChild(rcdToLsLine);
+
+          // LS Symbol auf Notstrom-Leitung (using factory function, but with red stroke)
+          const lsEmergencyGroup = window.createCircuitBreaker({ x: lsEmergencyX, y: rcdY, rotation: 90 });
+          // Alle Strokes auf rot ändern
+          lsEmergencyGroup.querySelectorAll('*').forEach(el => {
+            if (el.getAttribute('stroke')) el.setAttribute('stroke', '#ff0000');
+          });
+          svg.appendChild(lsEmergencyGroup);
+
+          // LS Label
+          const lsEmergencyLabel = document.createElementNS(xmlns, 'text');
+          lsEmergencyLabel.setAttribute('x', lsEmergencyX);
+          lsEmergencyLabel.setAttribute('y', rcdY - 20);
+          lsEmergencyLabel.setAttribute('text-anchor', 'middle');
+          lsEmergencyLabel.setAttribute('font-family', 'Arial');
+          lsEmergencyLabel.setAttribute('font-size', '8');
+          lsEmergencyLabel.setAttribute('fill', '#ff0000');
+          lsEmergencyLabel.setAttribute('font-weight', 'bold');
+          lsEmergencyLabel.textContent = 'LS';
+          svg.appendChild(lsEmergencyLabel);
+
+          // LS Info
+          const lsEmergencyInfo = document.createElementNS(xmlns, 'text');
+          lsEmergencyInfo.setAttribute('x', lsEmergencyX);
+          lsEmergencyInfo.setAttribute('y', rcdY - 12);
+          lsEmergencyInfo.setAttribute('text-anchor', 'middle');
+          lsEmergencyInfo.setAttribute('font-family', 'Arial');
+          lsEmergencyInfo.setAttribute('font-size', '7');
+          lsEmergencyInfo.setAttribute('fill', '#ff0000');
+          lsEmergencyInfo.textContent = '32A';
+          svg.appendChild(lsEmergencyInfo);
+
+          // Linie vom LS zum Umschalter
+          const lsToSwitchLine = document.createElementNS(xmlns, 'line');
+          lsToSwitchLine.setAttribute('x1', lsEmergencyX + 10);
+          lsToSwitchLine.setAttribute('y1', rcdY);
+          lsToSwitchLine.setAttribute('x2', switchX - 25);
+          lsToSwitchLine.setAttribute('y2', switchY);
+          lsToSwitchLine.setAttribute('stroke', '#ff0000');
+          lsToSwitchLine.setAttribute('stroke-width', '3');
+          lsToSwitchLine.setAttribute('stroke-dasharray', '10,5');
+          svg.appendChild(lsToSwitchLine);
+
+          // Notstrom-Label
+          const emergencyLabel = document.createElementNS(xmlns, 'text');
+          emergencyLabel.setAttribute('x', emergencyInv._layoutX + 50);
+          emergencyLabel.setAttribute('y', emergencyY - 8);
+          emergencyLabel.setAttribute('text-anchor', 'start');
+          emergencyLabel.setAttribute('font-family', 'Arial');
+          emergencyLabel.setAttribute('font-size', '9');
+          emergencyLabel.setAttribute('fill', '#ff0000');
+          emergencyLabel.setAttribute('font-weight', 'bold');
+          emergencyLabel.textContent = 'Notstrom';
+          svg.appendChild(emergencyLabel);
 
           // Netz-Leitung vom Meter zum Umschalter (Position 2 - unten)
           const meterToSwitchLine1 = document.createElementNS(xmlns, 'line');
@@ -1848,25 +1923,6 @@
           loadLabel.textContent = 'Haus';
           svg.appendChild(loadLabel);
 
-          // Notstrom-Label
-          const emergencyLabel = document.createElementNS(xmlns, 'text');
-          if (hasManySolarAreas) {
-            // Bei mehr als 3 Solarflächen: Label oberhalb der ersten horizontalen Linie
-            emergencyLabel.setAttribute('x', emergencyInv._layoutX + 85);
-            emergencyLabel.setAttribute('y', switchY - 10); // Weiter oberhalb
-          } else {
-            // Bei <= 3 Solarflächen: Label oberhalb der horizontalen Linie
-            emergencyLabel.setAttribute('x', emergencyInv._layoutX + 85);
-            emergencyLabel.setAttribute('y', emergencyInv._layoutY - 25); // Weiter oberhalb
-          }
-          emergencyLabel.setAttribute('text-anchor', 'start');
-          emergencyLabel.setAttribute('font-family', 'Arial');
-          emergencyLabel.setAttribute('font-size', '9');
-          emergencyLabel.setAttribute('fill', '#ff0000');
-          emergencyLabel.setAttribute('font-weight', 'bold');
-          emergencyLabel.textContent = 'Notstrom';
-          svg.appendChild(emergencyLabel);
-
         } else {
           // Normales Layout: Haus unten
           const loadBranchX = busEndX - 160; // Position on the bus line
@@ -1910,99 +1966,6 @@
           loadLabel.setAttribute('font-weight', 'bold');
           loadLabel.textContent = 'Haus';
           svg.appendChild(loadLabel);
-        }
-
-        // Draw SPD Typ 2 - position depends on emergency power
-        if (hasEmergencyPower) {
-          // Position SPD Typ 2 above the house
-          const emergencyInv = state.inverters.find(inv => inv.emergencyPower);
-          const hasManySolarAreas = emergencyInv.assignedSolarAreaIds.length > 3;
-          let switchX, switchY, houseX, houseY;
-
-          if (hasManySolarAreas) {
-            switchX = emergencyInv._layoutX + 160;
-            switchY = busLineY - 80;
-            houseX = switchX + 80;
-            houseY = switchY - 10;
-          } else {
-            switchX = emergencyInv._layoutX + 160;
-            switchY = emergencyInv._layoutY - 15;
-            houseX = switchX + 80;
-            houseY = switchY - 10;
-          }
-
-          const spdType2X = houseX;
-          const spdType2Y = houseY - 50;
-          const spdType2Box = createSPD('SPD Typ 2', { x: spdType2X - 5, y: spdType2Y });
-          svg.appendChild(spdType2Box);
-
-          // Verbindungslinie vom SPD: nach oben, dann links, dann runter auf die Leitung zwischen Lastumschalter und Haus
-          const spdTopY = spdType2Y ; // Oben am SPD (SPD hat etwa 14px Höhe nach oben)
-          const connectionHighY = spdTopY - 20; // Noch etwas höher gehen
-          const switchToHouseLineX = switchX + 52; // Mittig auf der Leitung zwischen Umschalter und Haus
-
-          // 1. Vertikale Linie von oben am SPD nach oben
-          const spdTopLine = document.createElementNS(xmlns, 'line');
-          spdTopLine.setAttribute('x1', spdType2X);
-          spdTopLine.setAttribute('y1', spdTopY);
-          spdTopLine.setAttribute('x2', spdType2X);
-          spdTopLine.setAttribute('y2', connectionHighY);
-          spdTopLine.setAttribute('stroke', '#000');
-          spdTopLine.setAttribute('stroke-width', '2');
-          svg.appendChild(spdTopLine);
-
-          // 2. Horizontale Linie nach links
-          const spdToSwitchHorizontal = document.createElementNS(xmlns, 'line');
-          spdToSwitchHorizontal.setAttribute('x1', spdType2X);
-          spdToSwitchHorizontal.setAttribute('y1', connectionHighY);
-          spdToSwitchHorizontal.setAttribute('x2', switchToHouseLineX);
-          spdToSwitchHorizontal.setAttribute('y2', connectionHighY);
-          spdToSwitchHorizontal.setAttribute('stroke', '#000');
-          spdToSwitchHorizontal.setAttribute('stroke-width', '2');
-          svg.appendChild(spdToSwitchHorizontal);
-
-          // 3. Vertikale Linie nach unten zur Leitung zwischen Umschalter und Haus
-          const spdDownLine = document.createElementNS(xmlns, 'line');
-          spdDownLine.setAttribute('x1', switchToHouseLineX);
-          spdDownLine.setAttribute('y1', connectionHighY);
-          spdDownLine.setAttribute('x2', switchToHouseLineX);
-          spdDownLine.setAttribute('y2', switchY);
-          spdDownLine.setAttribute('stroke', '#000');
-          spdDownLine.setAttribute('stroke-width', '2');
-          svg.appendChild(spdDownLine);
-
-          // Junction point auf der Leitung zwischen Umschalter und Haus
-          const spdJunction = document.createElementNS(xmlns, 'circle');
-          spdJunction.setAttribute('cx', switchToHouseLineX);
-          spdJunction.setAttribute('cy', switchY);
-          spdJunction.setAttribute('r', '2');
-          spdJunction.setAttribute('fill', '#000');
-          svg.appendChild(spdJunction);
-
-        } else {
-          // Draw SPD Typ 2 on AC busbar (behind load and meters) - original position
-          const spdType2X = busEndX - 70; // Position on the bus line (right of load)
-
-          // SPD Typ 2 junction point on busbar
-          const spdType2JunctionPoint = document.createElementNS(xmlns, 'circle');
-          spdType2JunctionPoint.setAttribute('cx', spdType2X);
-          spdType2JunctionPoint.setAttribute('cy', busLineY);
-          spdType2JunctionPoint.setAttribute('r', '3');
-          spdType2JunctionPoint.setAttribute('fill', '#000');
-          svg.appendChild(spdType2JunctionPoint);
-
-          // SPD Typ 2 vertical line from busbar
-          const spdType2ToBusLine = document.createElementNS(xmlns, 'line');
-          spdType2ToBusLine.setAttribute('x1', spdType2X);
-          spdType2ToBusLine.setAttribute('y1', busLineY);
-          spdType2ToBusLine.setAttribute('x2', spdType2X);
-          spdType2ToBusLine.setAttribute('y2', busLineY + 40);
-          spdType2ToBusLine.setAttribute('stroke', '#000');
-          spdType2ToBusLine.setAttribute('stroke-width', '2');
-          svg.appendChild(spdType2ToBusLine);
-
-          const spdType2Box = createSPD('SPD Typ 2', { x: spdType2X - 5, y: busLineY + 40 });
-          svg.appendChild(spdType2Box);
         }
 
         // Connection from SPD Kombi to SLS
@@ -2110,7 +2073,7 @@
         hakLabel.textContent = 'HAK';
         svg.appendChild(hakLabel);
 
-        // SPD Kombi - draw inline like SPD Typ 2
+        // SPD Kombi
         // Vertical line from busbar down
         const spdKombiToBusLine = document.createElementNS(xmlns, 'line');
         spdKombiToBusLine.setAttribute('x1', spdKombiX);

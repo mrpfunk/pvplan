@@ -31,7 +31,8 @@ pvplan/
 │       ├── battery.js           # Batterie symbol
 │       ├── meter.js             # Zweirichtungszähler symbol
 │       ├── circuit-breaker.js   # Leitungsschutzschalter (LS)
-│       └── sls.js               # Selektiver LS symbol
+│       ├── sls.js               # Selektiver LS symbol
+│       └── rcd.js               # RCD/FI-Schutzschalter symbol
 └── CLAUDE.md                    # This file
 ```
 
