@@ -20,6 +20,11 @@ Ein benutzerfreundlicher Web-basierter Generator für professionelle Photovoltai
 - **Wechselrichter-Setup** - Konfiguration von String- und Hybrid-Wechselrichtern
 - **Batteriespeicher** - Integration von Speichersystemen in den Schaltplan
 
+### 🗺️ Kartenbasierte Flächenerfassung
+- **OpenStreetMap-Integration** - Dachflächen direkt auf der Karte einzeichnen
+- **Polygonwerkzeug** - Freie Flächenerfassung per Klick auf der Satellitenansicht
+- **Automatische Modulanzahl-Berechnung** - Aus der gezeichneten Fläche wird die maximal mögliche Modulanzahl errechnet
+
 ### 📊 Technische Berechnungen
 - **Automatische String-Berechnung** - Optimale Modul-Verschaltung
 - **Leistungsanalyse** - DC/AC-Leistung pro Bereich und gesamt
