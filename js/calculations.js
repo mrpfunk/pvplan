@@ -154,6 +154,19 @@ window.calculateModulesInPolygon = function(latlngs, moduleWidthCm = 178, module
   return Math.max(countGrid(w, h), countGrid(h, w));
 };
 
+window.calculateModulesForRect = function(lengthM, widthM, moduleWidthCm, moduleHeightCm) {
+  const mW = moduleWidthCm / 100;
+  const mH = moduleHeightCm / 100;
+  const portraitCols  = Math.floor(widthM  / mW);
+  const portraitRows  = Math.floor(lengthM / mH);
+  const landscapeCols = Math.floor(widthM  / mH);
+  const landscapeRows = Math.floor(lengthM / mW);
+  return {
+    portrait:      portraitCols  * portraitRows,  portraitCols,  portraitRows,
+    landscape:     landscapeCols * landscapeRows, landscapeCols, landscapeRows
+  };
+};
+
 window.calculateCableSizeFromLsCurrent = function(lsAmps, cableLengthMeters = 10, voltage = 230) {
   const rho = 0.0175; // specific resistance of copper in Ω·mm²/m
   const totalLength = cableLengthMeters * 2; // forward and return conductors

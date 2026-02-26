@@ -82,6 +82,7 @@
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
           <button id="addSA">➕ Solarfläche hinzufügen</button>
           <button id="openMapModal">🗺️ Dachfläche auf Karte einzeichnen</button>
+          <button id="openCalcModal">📐 Modulanzahl berechnen</button>
         </div>
       </div>
       <div class="list">
@@ -365,6 +366,36 @@
         Zeichne ein Polygon (Werkzeug oben links) über jede Dachfläche.
       </p>
       <div id="mapPolygonList" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div id="calcModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; overflow:auto; padding:20px; box-sizing:border-box;">
+    <div style="background:#fff; border-radius:10px; max-width:480px; margin:40px auto; padding:20px; position:relative;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 style="margin:0; font-size:16px;">📐 Modulanzahl berechnen</h2>
+        <button id="calcModalClose">✕ Schließen</button>
+      </div>
+
+      <label style="font-size:13px;">Dachlänge (m)
+        <input id="calcLength" type="number" min="0.1" step="0.1" value="8" />
+      </label>
+      <label style="font-size:13px;">Dachbreite (m)
+        <input id="calcWidth" type="number" min="0.1" step="0.1" value="5" />
+      </label>
+
+      <div style="margin-top:12px; padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+        <div style="font-size:11px; color:#666; margin-bottom:6px;">Modulabmessungen (aus PV-Konfiguration)</div>
+        <div style="display:flex; gap:8px;">
+          <label style="flex:1; font-size:13px;">Breite (cm)
+            <input id="calcModW" type="number" min="1" value="178" />
+          </label>
+          <label style="flex:1; font-size:13px;">Höhe (cm)
+            <input id="calcModH" type="number" min="1" value="115" />
+          </label>
+        </div>
+      </div>
+
+      <div id="calcResult" style="margin-top:16px;"></div>
     </div>
   </div>
 
@@ -2564,10 +2595,65 @@
         if (e.target === this) closeMapModal();
       });
       $('mapSearchBtn').addEventListener('click', () => searchAddress($('mapSearch').value));
+
+      function openCalcModal() {
+        $('calcModW').value = state.moduleConfig.widthCm || 178;
+        $('calcModH').value = state.moduleConfig.heightCm || 115;
+        $('calcModal').style.display = 'block';
+        updateCalcResult();
+      }
+
+      function updateCalcResult() {
+        const lengthM = parseFloat($('calcLength').value) || 0;
+        const widthM  = parseFloat($('calcWidth').value)  || 0;
+        const modW    = parseFloat($('calcModW').value)   || 178;
+        const modH    = parseFloat($('calcModH').value)   || 115;
+
+        if (lengthM <= 0 || widthM <= 0) {
+          $('calcResult').innerHTML = '<p style="color:#999;font-size:13px;">Bitte Länge und Breite eingeben.</p>';
+          return;
+        }
+
+        const r = window.calculateModulesForRect(lengthM, widthM, modW, modH);
+        const better = r.portrait >= r.landscape ? 'portrait' : 'landscape';
+
+        $('calcResult').innerHTML = `
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;">Ausrichtung</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #e2e8f0;">Reihen × Spalten</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #e2e8f0;">Module</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="${better==='portrait' ? 'background:#f0fdf4;font-weight:600;' : ''}">
+                <td style="padding:8px;border-bottom:1px solid #f0f2fa;">Hochformat</td>
+                <td style="padding:8px;text-align:center;border-bottom:1px solid #f0f2fa;">${r.portraitRows} × ${r.portraitCols}</td>
+                <td style="padding:8px;text-align:center;border-bottom:1px solid #f0f2fa;">${r.portrait}${better==='portrait' ? ' ✓' : ''}</td>
+              </tr>
+              <tr style="${better==='landscape' ? 'background:#f0fdf4;font-weight:600;' : ''}">
+                <td style="padding:8px;">Querformat</td>
+                <td style="padding:8px;text-align:center;">${r.landscapeRows} × ${r.landscapeCols}</td>
+                <td style="padding:8px;text-align:center;">${r.landscape}${better==='landscape' ? ' ✓' : ''}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="font-size:11px;color:#888;margin-top:8px;">
+            Fläche: ${lengthM} × ${widthM} m = ${(lengthM*widthM).toFixed(1)} m²  ·  Modul: ${modW} × ${modH} cm
+          </p>
+        `;
+      }
+
+      $('openCalcModal').addEventListener('click', openCalcModal);
+      $('calcModalClose').addEventListener('click', () => $('calcModal').style.display = 'none');
+      $('calcModal').addEventListener('click', e => { if (e.target === $('calcModal')) $('calcModal').style.display = 'none'; });
+      ['calcLength','calcWidth','calcModW','calcModH'].forEach(id => $(id).addEventListener('input', updateCalcResult));
       $('mapSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchAddress($('mapSearch').value); });
 
     })();
 
   </script>
+
 </body>
 </html>
