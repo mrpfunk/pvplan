@@ -24,9 +24,6 @@
       <span class="chevron">▼</span>
     </div>
     <div class="section-content" id="projekt-content">
-      <label>Projektname
-        <input id="projectName" placeholder="Mein PV-Projekt" />
-      </label>
       <label>Kundenanschrift
         <textarea id="projectAddress" placeholder="Name&#10;Straße und Hausnummer&#10;PLZ und Ort&#10;Telefon" style="width:100%;min-height:80px;padding:8px;border:1px solid #ddd;border-radius:3px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box"></textarea>
       </label>
@@ -410,20 +407,28 @@
   <script src="https://unpkg.com/svg2pdf.js@2.2.1/dist/svg2pdf.umd.min.js"></script>
 
   <script>
-    // Toggle section visibility
+    // Toggle section visibility (Accordion)
     function toggleSection(sectionId) {
       const content = document.getElementById(sectionId + '-content');
-      const chevron = event.target.closest('.section-header').querySelector('.chevron');
       const header = event.target.closest('.section-header');
+      const chevron = header.querySelector('.chevron');
+      const isCollapsed = content.classList.contains('collapsed');
 
-      if (content.classList.contains('collapsed')) {
+      // Alle Bereiche schließen (Accordion)
+      ['projekt', 'pv-module', 'solarflaechen', 'wechselrichter', 'batterie'].forEach(id => {
+        const c = document.getElementById(id + '-content');
+        const h = document.querySelector(`[onclick="toggleSection('${id}')"]`);
+        const ch = h ? h.querySelector('.chevron') : null;
+        if (c) c.classList.add('collapsed');
+        if (h) h.classList.add('collapsed');
+        if (ch) ch.classList.add('collapsed');
+      });
+
+      // Angeklickten Bereich öffnen, falls er vorher geschlossen war
+      if (isCollapsed) {
         content.classList.remove('collapsed');
-        chevron.classList.remove('collapsed');
         header.classList.remove('collapsed');
-      } else {
-        content.classList.add('collapsed');
-        chevron.classList.add('collapsed');
-        header.classList.add('collapsed');
+        chevron.classList.remove('collapsed');
       }
     }
 
@@ -662,7 +667,6 @@
     (function(){
       // state - exposed globally as window.state for protocol functions
       window.state = {
-        projectName: 'Mein PV-Projekt',
         projectAddress: '', // Kundenanschrift
         slsSize: 35, // SLS-Schalter Größe (35A oder 50A)
         moduleConfig: {
@@ -860,7 +864,7 @@
 
       function updateMetaBox(){
         const hasEmergencyPower = state.inverters.some(inv => inv.emergencyPower);
-        $('metaBox').innerHTML = `<strong>${state.projectName}</strong><br>PV-Flächen: ${state.solarAreas.length} | Wechselrichter: ${state.inverters.length} | Batterie: ${state.battery? 'ja':'nein'} | Notstrom: ${hasEmergencyPower ? 'ja' : 'nein'}`;
+        $('metaBox').innerHTML = `PV-Flächen: ${state.solarAreas.length} | Wechselrichter: ${state.inverters.length} | Batterie: ${state.battery? 'ja':'nein'} | Notstrom: ${hasEmergencyPower ? 'ja' : 'nein'}`;
       }
 
       // add solar area
@@ -942,14 +946,12 @@
       $('newProject').addEventListener('click', ()=>{
         if(!confirm('Neues Projekt erstellen? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
         collapseAllExceptFirst();
-        state.projectName = 'Mein PV-Projekt';
         state.moduleConfig = { info: '', wattage: 420, widthCm: 178, heightCm: 115 };
         state.mapPolygons = [];
         state.solarAreas=[]; state.inverters=[]; state.battery=null;
         uidCounter = 1; // Reset counter for new project
         _polygons = []; if(_drawLayer) _drawLayer.clearLayers(); renderPolygonList();
         renderLists();
-        $('projectName').value='';
         $('moduleInfo').value='';
         $('moduleWattage').value=420;
         $('moduleWidthCm').value=178;
@@ -957,8 +959,6 @@
         $('svgWrap').innerHTML='Keine Vorschau. Bitte „Schaltplan generieren“ klicken.';
 
       });
-
-      $('projectName').addEventListener('input',(e)=>{ state.projectName = e.target.value; updateMetaBox(); });
 
       $('projectAddress').addEventListener('input',(e)=>{ state.projectAddress = e.target.value; });
 
@@ -1119,8 +1119,8 @@
         captureProtocolData();
         captureMapPolygons();
         state.slsSize = Number($('slsSize').value) || 35;
-        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,slsSize:state.slsSize,moduleConfig:state.moduleConfig,mapPolygons:state.mapPolygons,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
+        const blob = new Blob([JSON.stringify({projectAddress:state.projectAddress,slsSize:state.slsSize,moduleConfig:state.moduleConfig,mapPolygons:state.mapPolygons,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stromlaufplan.pvproj.json'; a.click();
       });
 
       $('openProject').addEventListener('click', ()=>{
@@ -1131,7 +1131,6 @@
         const f = e.target.files[0]; if(!f) return; const txt = await f.text();
         try{
           const obj = JSON.parse(txt);
-          state.projectName = obj.projectName||state.projectName;
           state.projectAddress = obj.projectAddress||'';
           state.slsSize = obj.slsSize || 35;
           state.moduleConfig = obj.moduleConfig||{ info: '', wattage: 420 };
@@ -1143,7 +1142,6 @@
             state.protocol = obj.protocol;
           }
           collapseAllExceptFirst();
-          $('projectName').value = state.projectName;
           $('projectAddress').value = state.projectAddress;
           $('slsSize').value = state.slsSize;
           state.moduleConfig.widthCm ||= 178;
@@ -1195,7 +1193,7 @@
         titleText.setAttribute('font-family', 'Arial');
         titleText.setAttribute('font-size', '14');
         titleText.setAttribute('font-weight', 'bold');
-        titleText.textContent = state.projectName || 'PV-Anlage Schaltplan';
+        titleText.textContent = 'PV-Anlage Stromlaufplan';
         svg.appendChild(titleText);
 
         // Add address below title if available
@@ -2368,7 +2366,7 @@
             tempContainer.parentNode.removeChild(tempContainer);
           }
 
-          pdf.save((state.projectName || 'Stromlaufplan') + '.pdf');
+          pdf.save('Stromlaufplan.pdf');
         }catch(err){
           alert('PDF Export fehlgeschlagen: '+err.message);
           console.error(err);

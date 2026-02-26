@@ -329,3 +329,16 @@ hr{display:none}
     margin: 0 !important;
   }
 }
+
+/* Dezente farbige linke Randstreifen pro Sidebar-Bereich */
+.section-header[onclick*="'projekt'"]         { border-left: 3px solid rgba(59, 130, 246, 0.45); }
+.section-header[onclick*="'pv-module'"]       { border-left: 3px solid rgba(249, 115, 22, 0.45); }
+.section-header[onclick*="'solarflaechen'"]   { border-left: 3px solid rgba(34, 197, 94, 0.45); }
+.section-header[onclick*="'wechselrichter'"]  { border-left: 3px solid rgba(139, 92, 246, 0.45); }
+.section-header[onclick*="'batterie'"]        { border-left: 3px solid rgba(234, 179, 8, 0.45); }
+
+.section-content[id^="projekt"]        { border-left: 3px solid rgba(59, 130, 246, 0.25); }
+.section-content[id^="pv-module"]      { border-left: 3px solid rgba(249, 115, 22, 0.25); }
+.section-content[id^="solarflaechen"]  { border-left: 3px solid rgba(34, 197, 94, 0.25); }
+.section-content[id^="wechselrichter"] { border-left: 3px solid rgba(139, 92, 246, 0.25); }
+.section-content[id^="batterie"]       { border-left: 3px solid rgba(234, 179, 8, 0.25); }
