@@ -32,6 +32,10 @@ Ein benutzerfreundlicher Web-basierter Generator für professionelle Photovoltai
 - **Automatisches Layout** - Intelligente Platzierung aller Komponenten
 - **Responsive Design** - Optimiert für verschiedene Bildschirmgrößen
 
+### 🗂️ Sidebar-Navigation
+- **Accordion-Verhalten** - Immer nur ein Konfigurationsbereich geöffnet, kein Scrollen durch überladene Seitenleiste
+- **Farbcodierung** - Dezente farbige Randstreifen kennzeichnen jeden Bereich (Projekt: Blau, PV-Module: Orange, Solarflächen: Grün, Wechselrichter: Lila, Batterie: Gelb)
+
 ### 📄 Export-Funktionen
 - **PDF-Export** - Professionelle Dokumente für Kunden und Behörden
 - **SVG-Download** - Vektorgrafiken für weitere Bearbeitung
