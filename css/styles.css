@@ -73,6 +73,14 @@ input[type=file]{padding:6px}
 .tab-content:not(.active){display:none}
 
 hr{display:none}
+#leafletMap { overflow: hidden; }
+#leafletMap .leaflet-editing-icon,
+#leafletMap .leaflet-touch-icon {
+  width: 8px !important;
+  height: 8px !important;
+  margin-left: -4px !important;
+  margin-top: -4px !important;
+}
 
 /* Protocol Styles */
 .protocol-header{background:linear-gradient(135deg,var(--primary-color) 0%,var(--secondary-color) 100%);color:#fff;padding:20px 25px;margin:-16px -16px 20px -16px;border-radius:0 0 6px 6px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
@@ -110,6 +118,8 @@ hr{display:none}
 
 /* Print Styles for Protocol */
 @media print {
+  #mapModal, #openMapModal { display: none !important; }
+
   * {
     box-sizing: border-box;
   }

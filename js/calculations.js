@@ -85,6 +85,75 @@ window.calculateCableSize = function(acPowerW, phases, cableLengthMeters = 10) {
  * @param {number} voltage - Voltage in Volts (default: 230)
  * @returns {number} - Cable cross-section in mm²
  */
+/**
+ * Calculate how many PV modules fit in a roof area polygon
+ * @param {number} polygonAreaM2 - Polygon area in square meters (geodesic)
+ * @param {number} moduleWidthCm - Module width in cm (default: 178)
+ * @param {number} moduleHeightCm - Module height in cm (default: 115)
+ * @param {number} packingEfficiency - Packing efficiency factor (default: 0.85)
+ * @returns {number} - Number of modules that fit in the area
+ */
+window.calculateModulesInArea = function(polygonAreaM2, moduleWidthCm = 178, moduleHeightCm = 115, packingEfficiency = 0.85) {
+  const moduleAreaM2 = (moduleWidthCm / 100) * (moduleHeightCm / 100);
+  return Math.max(0, Math.floor((polygonAreaM2 * packingEfficiency) / moduleAreaM2));
+};
+
+/**
+ * Calculate how many PV modules fit in a polygon using grid-fitting.
+ * Tests both portrait and landscape orientations and returns the better result.
+ * @param {Array<{lat: number, lng: number}>} latlngs - Polygon vertices
+ * @param {number} moduleWidthCm - Module width in cm (default: 178)
+ * @param {number} moduleHeightCm - Module height in cm (default: 115)
+ * @returns {number} - Number of modules that fit
+ */
+window.calculateModulesInPolygon = function(latlngs, moduleWidthCm = 178, moduleHeightCm = 115) {
+  if (!latlngs || latlngs.length < 3) return 0;
+
+  // Project lat/lng to local metric coordinates (equirectangular, accurate for small areas)
+  const lat0 = latlngs.reduce((s, p) => s + p.lat, 0) / latlngs.length;
+  const lng0 = latlngs.reduce((s, p) => s + p.lng, 0) / latlngs.length;
+  const mPerLat = 111320;
+  const mPerLng = 111320 * Math.cos(lat0 * Math.PI / 180);
+
+  const pts = latlngs.map(p => ({
+    x: (p.lng - lng0) * mPerLng,
+    y: (p.lat - lat0) * mPerLat
+  }));
+
+  // Ray-casting point-in-polygon test
+  function inside(px, py) {
+    let hit = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, yi = pts[i].y;
+      const xj = pts[j].x, yj = pts[j].y;
+      if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) {
+        hit = !hit;
+      }
+    }
+    return hit;
+  }
+
+  // Count modules on an axis-aligned grid with given cell size
+  function countGrid(cellW, cellH) {
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    let count = 0;
+    for (let y = minY + cellH / 2; y < maxY; y += cellH) {
+      for (let x = minX + cellW / 2; x < maxX; x += cellW) {
+        if (inside(x, y)) count++;
+      }
+    }
+    return count;
+  }
+
+  const w = moduleWidthCm / 100;
+  const h = moduleHeightCm / 100;
+
+  // Portrait (Hochformat): w × h, Landscape (Querformat): h × w
+  return Math.max(countGrid(w, h), countGrid(h, w));
+};
+
 window.calculateCableSizeFromLsCurrent = function(lsAmps, cableLengthMeters = 10, voltage = 230) {
   const rho = 0.0175; // specific resistance of copper in Ω·mm²/m
   const totalLength = cableLengthMeters * 2; // forward and return conductors

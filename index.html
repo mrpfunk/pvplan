@@ -57,6 +57,12 @@
         <label>Modul Nennleistung (W)
           <input id="moduleWattage" type="number" min="1" value="420" />
         </label>
+        <label>Modulbreite (cm)
+          <input id="moduleWidthCm" type="number" min="1" value="178" />
+        </label>
+        <label>Modulhöhe (cm)
+          <input id="moduleHeightCm" type="number" min="1" value="115" />
+        </label>
       </div>
     </div>
 
@@ -75,6 +81,7 @@
         </label>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
           <button id="addSA">➕ Solarfläche hinzufügen</button>
+          <button id="openMapModal">🗺️ Dachfläche auf Karte einzeichnen</button>
         </div>
       </div>
       <div class="list">
@@ -341,6 +348,32 @@
     </div>
   </div>
 
+  <!-- Map Modal -->
+  <div id="mapModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; overflow:auto; padding:20px; box-sizing:border-box;">
+    <div style="background:#fff; border-radius:10px; max-width:900px; margin:0 auto; padding:16px; position:relative;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0; font-size:16px;">Dachfläche auf Karte einzeichnen</h2>
+        <button id="mapModalClose">✕ Schließen</button>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input id="mapSearch" type="text" placeholder="Adresse suchen..." style="flex:1;" />
+        <button id="mapSearchBtn">Suchen</button>
+      </div>
+      <div id="mapSearchStatus" style="font-size:12px; color:#666; margin-bottom:6px; min-height:16px;"></div>
+      <div id="leafletMap" style="height:420px; border-radius:6px; border:1px solid #ddd;"></div>
+      <p style="font-size:12px; color:#666; margin:8px 0;">
+        Zeichne ein Polygon (Werkzeug oben links) über jede Dachfläche.
+      </p>
+      <div id="mapPolygonList" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet map libs -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.js"></script>
   <!-- libs via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://unpkg.com/svg2pdf.js@2.2.1/dist/svg2pdf.umd.min.js"></script>
@@ -603,8 +636,11 @@
         slsSize: 35, // SLS-Schalter Größe (35A oder 50A)
         moduleConfig: {
           info: '', // Hersteller + Typ
-          wattage: 420 // Nennleistung in W
+          wattage: 455, // Nennleistung in W
+          widthCm: 178, // Modulbreite in cm
+          heightCm: 115 // Modulhöhe in cm
         },
+        mapPolygons: [], // Gespeicherte Kartenflächen [{name, latlngs, areaM2, modules}]
         solarAreas: [],
         inverters: [],
         battery: null,
@@ -778,6 +814,13 @@
           const id = btn.getAttribute('data-id'); state.solarAreas = state.solarAreas.filter(s=>s.id!==id);
           // remove references in inverters
           state.inverters.forEach(inv=>{ inv.assignedSolarAreaIds = inv.assignedSolarAreaIds.filter(x=>x!==id); });
+          // remove linked polygon from map
+          const polyIdx = _polygons.findIndex(p => p.solarAreaId === id);
+          if (polyIdx !== -1) {
+            if (_drawLayer) _drawLayer.removeLayer(_polygons[polyIdx].leafletLayer);
+            _polygons.splice(polyIdx, 1);
+            renderPolygonList();
+          }
           renderLists();
         }));
 
@@ -869,13 +912,17 @@
         if(!confirm('Neues Projekt erstellen? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
         collapseAllExceptFirst();
         state.projectName = 'Mein PV-Projekt';
-        state.moduleConfig = { info: '', wattage: 420 };
+        state.moduleConfig = { info: '', wattage: 420, widthCm: 178, heightCm: 115 };
+        state.mapPolygons = [];
         state.solarAreas=[]; state.inverters=[]; state.battery=null;
         uidCounter = 1; // Reset counter for new project
+        _polygons = []; if(_drawLayer) _drawLayer.clearLayers(); renderPolygonList();
         renderLists();
         $('projectName').value='';
         $('moduleInfo').value='';
         $('moduleWattage').value=420;
+        $('moduleWidthCm').value=178;
+        $('moduleHeightCm').value=115;
         $('svgWrap').innerHTML='Keine Vorschau. Bitte „Schaltplan generieren“ klicken.';
 
       });
@@ -928,6 +975,8 @@
         state.moduleConfig.wattage = parseFloat(e.target.value) || 420;
         renderLists();
       });
+      $('moduleWidthCm').addEventListener('input',(e)=>{ state.moduleConfig.widthCm = parseFloat(e.target.value) || 178; });
+      $('moduleHeightCm').addEventListener('input',(e)=>{ state.moduleConfig.heightCm = parseFloat(e.target.value) || 115; });
 
       // Capture protocol data to state
       function captureProtocolData() {
@@ -1037,8 +1086,9 @@
       // save/load
       $('saveProject').addEventListener('click', ()=>{
         captureProtocolData();
+        captureMapPolygons();
         state.slsSize = Number($('slsSize').value) || 35;
-        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,slsSize:state.slsSize,moduleConfig:state.moduleConfig,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
+        const blob = new Blob([JSON.stringify({projectName:state.projectName,projectAddress:state.projectAddress,slsSize:state.slsSize,moduleConfig:state.moduleConfig,mapPolygons:state.mapPolygons,solarAreas:state.solarAreas,inverters:state.inverters,battery:state.battery,protocol:state.protocol},null,2)],{type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.projectName||'pv-project') + '.pvproj.json'; a.click();
       });
 
@@ -1057,6 +1107,7 @@
           state.solarAreas = obj.solarAreas||[];
           state.inverters = obj.inverters||[];
           state.battery = obj.battery||null;
+          state.mapPolygons = obj.mapPolygons || [];
           if (obj.protocol) {
             state.protocol = obj.protocol;
           }
@@ -1064,12 +1115,18 @@
           $('projectName').value = state.projectName;
           $('projectAddress').value = state.projectAddress;
           $('slsSize').value = state.slsSize;
+          state.moduleConfig.widthCm ||= 178;
+          state.moduleConfig.heightCm ||= 115;
           $('moduleInfo').value = state.moduleConfig.info;
           $('moduleWattage').value = state.moduleConfig.wattage;
+          $('moduleWidthCm').value = state.moduleConfig.widthCm;
+          $('moduleHeightCm').value = state.moduleConfig.heightCm;
           updateUidCounter(); // Update counter based on loaded IDs
           renderLists();
           // Restore protocol data
           restoreProtocolData();
+          // Restore map polygons if map is already initialized
+          if (_leafletMap) _restorePolygonsFromState();
         }catch(err){ alert('Fehler beim Laden: '+err.message); }
       });
 
@@ -2290,6 +2347,8 @@
       // initial render
       $('moduleInfo').value = state.moduleConfig.info;
       $('moduleWattage').value = state.moduleConfig.wattage;
+      $('moduleWidthCm').value = state.moduleConfig.widthCm;
+      $('moduleHeightCm').value = state.moduleConfig.heightCm;
       renderLists();
 
       // Set initial LS and cable suggestions
@@ -2302,6 +2361,210 @@
       const today = new Date();
       const dateStr = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
       document.getElementById('protocol-test-date').value = dateStr;
+
+      // ── Map Modal ────────────────────────────────────────────────────────────
+      let _leafletMap = null;
+      let _drawLayer  = null;
+      let _polygons   = []; // [{leafletLayer, areaM2, modules, name}]
+      let _polygonCounter = 0;
+
+      function captureMapPolygons() {
+        state.mapPolygons = _polygons.map(entry => ({
+          name: entry.name,
+          latlngs: entry.leafletLayer.getLatLngs()[0].map(ll => ({ lat: ll.lat, lng: ll.lng })),
+          areaM2: entry.areaM2,
+          modules: entry.modules
+        }));
+      }
+
+      function _restorePolygonsFromState() {
+        if (!state.mapPolygons || state.mapPolygons.length === 0) return;
+        _drawLayer.clearLayers();
+        _polygons = [];
+        state.mapPolygons.forEach(saved => {
+          const latlngs = saved.latlngs.map(ll => L.latLng(ll.lat, ll.lng));
+          const layer = L.polygon(latlngs);
+          _drawLayer.addLayer(layer);
+          const recalc = window.calculateModulesInPolygon(saved.latlngs, state.moduleConfig.widthCm, state.moduleConfig.heightCm);
+          const entry = { leafletLayer: layer, areaM2: saved.areaM2, modules: recalc || saved.modules, name: saved.name };
+          _polygons.push(entry);
+          layer.bindPopup(buildPopupContent(entry));
+        });
+        renderPolygonList();
+        if (_polygons.length > 0) {
+          _leafletMap.fitBounds(_drawLayer.getBounds(), { padding: [20, 20] });
+        }
+      }
+
+      function openMapModal() {
+        $('mapModal').style.display = 'block';
+        // Pre-fill search from project address
+        if (state.projectAddress && !$('mapSearch').value) {
+          const firstLine = state.projectAddress.split('\n').filter(l => l.trim()).slice(-2).join(', ');
+          $('mapSearch').value = firstLine;
+        }
+        if (!_leafletMap) {
+          _initLeafletMap();
+          if ($('mapSearch').value) searchAddress($('mapSearch').value);
+        } else {
+          setTimeout(() => _leafletMap.invalidateSize(), 100);
+        }
+      }
+
+      function closeMapModal() {
+        $('mapModal').style.display = 'none';
+      }
+
+      function _initLeafletMap() {
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 22
+        });
+        const satelliteLayer = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          { attribution: 'Tiles © Esri', maxZoom: 22 }
+        );
+
+        _leafletMap = L.map('leafletMap', { layers: [satelliteLayer] }).setView([51.1657, 10.4515], 6);
+
+        L.control.layers(
+          { 'Satellit': satelliteLayer, 'OpenStreetMap': osmLayer },
+          {},
+          { position: 'topright' }
+        ).addTo(_leafletMap);
+
+        _drawLayer = new L.FeatureGroup();
+        _leafletMap.addLayer(_drawLayer);
+
+        const drawControl = new L.Control.Draw({
+          draw: {
+            polygon: { allowIntersection: false, showArea: true },
+            polyline: false,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+            marker: false
+          },
+          edit: { featureGroup: _drawLayer }
+        });
+        _leafletMap.addControl(drawControl);
+
+        _leafletMap.on(L.Draw.Event.CREATED, function(e) {
+          const layer = e.layer;
+          const areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+          const modules = window.calculateModulesInPolygon(layer.getLatLngs()[0], state.moduleConfig.widthCm, state.moduleConfig.heightCm);
+          _polygonCounter++;
+          const entry = {
+            leafletLayer: layer,
+            areaM2: areaM2,
+            modules: modules,
+            name: 'Dach ' + _polygonCounter
+          };
+          _polygons.push(entry);
+          _drawLayer.addLayer(layer);
+          layer.bindPopup(buildPopupContent(entry)).openPopup();
+          renderPolygonList();
+        });
+
+        _leafletMap.on(L.Draw.Event.EDITED, function(e) {
+          e.layers.eachLayer(function(layer) {
+            const entry = _polygons.find(p => p.leafletLayer === layer);
+            if (entry) {
+              entry.areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+              entry.modules = window.calculateModulesInPolygon(layer.getLatLngs()[0], state.moduleConfig.widthCm, state.moduleConfig.heightCm);
+              layer.setPopupContent(buildPopupContent(entry));
+            }
+          });
+          renderPolygonList();
+        });
+
+        _leafletMap.on(L.Draw.Event.DELETED, function(e) {
+          e.layers.eachLayer(function(layer) {
+            _polygons = _polygons.filter(p => p.leafletLayer !== layer);
+          });
+          renderPolygonList();
+        });
+
+        // Restore polygons from state (e.g. after project load)
+        _restorePolygonsFromState();
+      }
+
+      function buildPopupContent(entry) {
+        return `<b>${entry.name}</b><br>Fläche: ${entry.areaM2.toFixed(1)} m²<br>Module: ca. ${entry.modules}`;
+      }
+
+      async function searchAddress(query) {
+        if (!query.trim()) return;
+        $('mapSearchStatus').textContent = 'Suche läuft…';
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+          const res = await fetch(url, { headers: { 'Accept-Language': 'de' } });
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const { lat, lon, display_name } = data[0];
+            _leafletMap.setView([parseFloat(lat), parseFloat(lon)], 19);
+            $('mapSearchStatus').textContent = '✓ ' + display_name;
+          } else {
+            $('mapSearchStatus').textContent = 'Adresse nicht gefunden.';
+          }
+        } catch(err) {
+          $('mapSearchStatus').textContent = 'Fehler bei der Suche: ' + err.message;
+        }
+      }
+
+      function renderPolygonList() {
+        const container = $('mapPolygonList');
+        if (!container) return;
+        if (_polygons.length === 0) {
+          container.innerHTML = '<p style="font-size:12px;color:#999;">Noch keine Polygone gezeichnet.</p>';
+          return;
+        }
+        container.innerHTML = _polygons.map((entry, idx) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px;">
+            <span style="font-size:12px;color:#666;min-width:20px;">${idx+1}.</span>
+            <input type="text" value="${entry.name}" data-pidx="${idx}" style="flex:1;padding:4px 6px;font-size:12px;" />
+            <span style="font-size:12px;color:#555;white-space:nowrap;">${entry.areaM2.toFixed(0)} m² · ${entry.modules} Module</span>
+            <button data-import="${idx}" style="font-size:11px;padding:4px 8px;">Als Solarfläche übernehmen</button>
+          </div>
+        `).join('');
+        container.querySelectorAll('input[data-pidx]').forEach(input => {
+          input.addEventListener('change', function() {
+            const idx = parseInt(this.getAttribute('data-pidx'));
+            _polygons[idx].name = this.value;
+            _polygons[idx].leafletLayer.setPopupContent(buildPopupContent(_polygons[idx]));
+          });
+        });
+        container.querySelectorAll('button[data-import]').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const idx = parseInt(this.getAttribute('data-import'));
+            importPolygonAsSolarArea(_polygons[idx]);
+          });
+        });
+      }
+
+      function importPolygonAsSolarArea(entry) {
+        if (!entry.modules || entry.modules < 1) {
+          alert('Zu wenige Module berechnet. Bitte eine größere Fläche zeichnen oder Modulabmessungen prüfen.');
+          return;
+        }
+        const id = 'SA' + uid();
+        entry.solarAreaId = id; // Link polygon ↔ solar area
+        state.solarAreas.push({ id, name: entry.name, modules: entry.modules });
+        renderLists();
+        // Mark polygon green as visual feedback
+        if (entry.leafletLayer.setStyle) {
+          entry.leafletLayer.setStyle({ color: '#16a34a', fillColor: '#16a34a' });
+        }
+        entry.leafletLayer.setPopupContent(buildPopupContent(entry) + '<br><span style="color:green;font-weight:bold;">✓ Übernommen als ' + id + '</span>');
+      }
+
+      $('openMapModal').addEventListener('click', openMapModal);
+      $('mapModalClose').addEventListener('click', closeMapModal);
+      $('mapModal').addEventListener('click', function(e) {
+        if (e.target === this) closeMapModal();
+      });
+      $('mapSearchBtn').addEventListener('click', () => searchAddress($('mapSearch').value));
+      $('mapSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchAddress($('mapSearch').value); });
 
     })();
 
