@@ -2397,6 +2397,7 @@
       let _drawLayer  = null;
       let _polygons   = []; // [{leafletLayer, areaM2, modules, name}]
       let _polygonCounter = 0;
+      let _editingEntry = null;
 
       function captureMapPolygons() {
         state.mapPolygons = _polygons.map(entry => ({
@@ -2523,6 +2524,25 @@
         return `<b>${entry.name}</b><br>Fläche: ${entry.areaM2.toFixed(1)} m²<br>Module: ca. ${entry.modules}`;
       }
 
+      function startEditing(entry) {
+        if (_editingEntry && _editingEntry !== entry) {
+          stopEditing(_editingEntry);
+        }
+        entry.leafletLayer.editing.enable();
+        _editingEntry = entry;
+        _leafletMap.fitBounds(entry.leafletLayer.getBounds(), { padding: [60, 60] });
+        renderPolygonList();
+      }
+
+      function stopEditing(entry) {
+        entry.leafletLayer.editing.disable();
+        entry.areaM2 = L.GeometryUtil.geodesicArea(entry.leafletLayer.getLatLngs()[0]);
+        entry.modules = window.calculateModulesInPolygon(entry.leafletLayer.getLatLngs()[0], state.moduleConfig.widthCm || 178, state.moduleConfig.heightCm || 115);
+        entry.leafletLayer.setPopupContent(buildPopupContent(entry));
+        _editingEntry = null;
+        renderPolygonList();
+      }
+
       async function searchAddress(query) {
         if (!query.trim()) return;
         $('mapSearchStatus').textContent = 'Suche läuft…';
@@ -2618,6 +2638,7 @@
             <span style="font-size:12px;color:#666;min-width:20px;">${idx+1}.</span>
             <input type="text" value="${entry.name}" data-pidx="${idx}" style="flex:1;padding:4px 6px;font-size:12px;" />
             <span style="font-size:12px;color:#555;white-space:nowrap;">${entry.areaM2.toFixed(0)} m² · ${entry.modules} Module</span>
+            <button data-edit="${idx}" style="font-size:11px;padding:4px 8px;${entry === _editingEntry ? 'background:#dcfce7;border-color:#86efac;color:#15803d;font-weight:bold;' : 'background:#f1f5f9;border-color:#cbd5e1;color:#64748b;'}">${entry === _editingEntry ? '✓ Fertig' : '✏ Bearbeiten'}</button>
             ${entry.solarAreaId
               ? `<button data-remove="${idx}" style="font-size:11px;padding:4px 8px;background:#fee2e2;border-color:#fca5a5;color:#b91c1c;">✕ Entfernen</button>`
               : `<button data-import="${idx}" style="font-size:11px;padding:4px 8px;">Als Solarfläche übernehmen</button>`
@@ -2636,6 +2657,13 @@
           btn.addEventListener('click', function() {
             const idx = parseInt(this.getAttribute('data-import'));
             importPolygonAsSolarArea(_polygons[idx]);
+          });
+        });
+        container.querySelectorAll('button[data-edit]').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const idx = parseInt(this.getAttribute('data-edit'));
+            const entry = _polygons[idx];
+            entry === _editingEntry ? stopEditing(entry) : startEditing(entry);
           });
         });
         container.querySelectorAll('button[data-remove]').forEach(btn => {
