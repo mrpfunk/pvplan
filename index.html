@@ -356,6 +356,7 @@
       <div style="display:flex; gap:8px; margin-bottom:10px;">
         <input id="mapSearch" type="text" placeholder="Adresse suchen..." style="flex:1;" />
         <button id="mapSearchBtn">Suchen</button>
+        <button id="mapAutofillBtn" title="Gebäude an aktueller Kartenposition automatisch aus OpenStreetMap laden">🏠 Gebäude erkennen</button>
       </div>
       <div id="mapSearchStatus" style="font-size:12px; color:#666; margin-bottom:6px; min-height:16px;"></div>
       <div id="leafletMap" style="height:420px; border-radius:6px; border:1px solid #ddd;"></div>
@@ -2541,6 +2542,70 @@
         }
       }
 
+      async function autofillBuildings() {
+        if (!_leafletMap) return;
+        const btn = $('mapAutofillBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Lädt…';
+        $('mapSearchStatus').textContent = 'Gebäude werden von OpenStreetMap geladen…';
+        try {
+          const center = _leafletMap.getCenter();
+          const lat = center.lat, lon = center.lng;
+
+          const query = `[out:json][timeout:15];way["building"](around:80,${lat},${lon});out geom;`;
+          const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Overpass-API Fehler: ' + res.status);
+          const data = await res.json();
+
+          if (!data.elements || data.elements.length === 0) {
+            $('mapSearchStatus').textContent = '⚠ Kein Gebäude gefunden. Karte auf das Gebäude zentrieren und erneut versuchen.';
+            return;
+          }
+
+          // Prefer buildings that contain the map center; fallback to all found
+          function containsCenter(geom) {
+            let inside = false;
+            for (let i = 0, j = geom.length - 1; i < geom.length; j = i++) {
+              const xi = geom[i].lon, yi = geom[i].lat;
+              const xj = geom[j].lon, yj = geom[j].lat;
+              if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)
+                inside = !inside;
+            }
+            return inside;
+          }
+
+          let candidates = data.elements.filter(el => el.type === 'way' && el.geometry && el.geometry.length >= 3);
+          const hits = candidates.filter(el => containsCenter(el.geometry));
+          if (hits.length > 0) candidates = hits;
+
+          let added = 0;
+          candidates.forEach(el => {
+            const latlngs = el.geometry.map(pt => L.latLng(pt.lat, pt.lon));
+            const layer = L.polygon(latlngs, { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.25 });
+            _drawLayer.addLayer(layer);
+            const latlngsArr = el.geometry.map(pt => ({ lat: pt.lat, lng: pt.lon }));
+            const areaM2 = L.GeometryUtil.geodesicArea(latlngs);
+            const modules = window.calculateModulesInPolygon(latlngsArr, state.moduleConfig.widthCm || 178, state.moduleConfig.heightCm || 115);
+            _polygonCounter++;
+            const entry = { leafletLayer: layer, areaM2, modules, name: 'Dach ' + _polygonCounter };
+            _polygons.push(entry);
+            layer.bindPopup(buildPopupContent(entry));
+            added++;
+          });
+
+          $('mapSearchStatus').textContent = `✓ ${added} Gebäude erkannt (OSM). Flächen anpassen und übernehmen.`;
+          renderPolygonList();
+          if (_drawLayer.getLayers().length > 0)
+            _leafletMap.fitBounds(_drawLayer.getBounds(), { padding: [30, 30] });
+        } catch(err) {
+          $('mapSearchStatus').textContent = 'Fehler: ' + err.message;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '🏠 Gebäude erkennen';
+        }
+      }
+
       function renderPolygonList() {
         const container = $('mapPolygonList');
         if (!container) return;
@@ -2549,11 +2614,15 @@
           return;
         }
         container.innerHTML = _polygons.map((entry, idx) => `
-          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:${entry.solarAreaId ? '#f0fdf4' : '#f8fafc'};border:1px solid ${entry.solarAreaId ? '#86efac' : '#e2e8f0'};border-radius:6px;margin-bottom:6px;">
             <span style="font-size:12px;color:#666;min-width:20px;">${idx+1}.</span>
             <input type="text" value="${entry.name}" data-pidx="${idx}" style="flex:1;padding:4px 6px;font-size:12px;" />
             <span style="font-size:12px;color:#555;white-space:nowrap;">${entry.areaM2.toFixed(0)} m² · ${entry.modules} Module</span>
-            <button data-import="${idx}" style="font-size:11px;padding:4px 8px;">Als Solarfläche übernehmen</button>
+            ${entry.solarAreaId
+              ? `<button data-remove="${idx}" style="font-size:11px;padding:4px 8px;background:#fee2e2;border-color:#fca5a5;color:#b91c1c;">✕ Entfernen</button>`
+              : `<button data-import="${idx}" style="font-size:11px;padding:4px 8px;">Als Solarfläche übernehmen</button>`
+            }
+            <button data-delete="${idx}" style="font-size:11px;padding:4px 6px;background:#f1f5f9;border-color:#cbd5e1;color:#64748b;" title="Polygon löschen">🗑</button>
           </div>
         `).join('');
         container.querySelectorAll('input[data-pidx]').forEach(input => {
@@ -2567,6 +2636,32 @@
           btn.addEventListener('click', function() {
             const idx = parseInt(this.getAttribute('data-import'));
             importPolygonAsSolarArea(_polygons[idx]);
+          });
+        });
+        container.querySelectorAll('button[data-remove]').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const idx = parseInt(this.getAttribute('data-remove'));
+            const entry = _polygons[idx];
+            state.solarAreas = state.solarAreas.filter(sa => sa.id !== entry.solarAreaId);
+            entry.solarAreaId = null;
+            if (entry.leafletLayer.setStyle)
+              entry.leafletLayer.setStyle({ color: '#3388ff', fillColor: '#3388ff', fillOpacity: 0.2 });
+            entry.leafletLayer.setPopupContent(buildPopupContent(entry));
+            renderLists();
+            renderPolygonList();
+          });
+        });
+        container.querySelectorAll('button[data-delete]').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const idx = parseInt(this.getAttribute('data-delete'));
+            const entry = _polygons[idx];
+            if (entry.solarAreaId) {
+              state.solarAreas = state.solarAreas.filter(sa => sa.id !== entry.solarAreaId);
+              renderLists();
+            }
+            _drawLayer.removeLayer(entry.leafletLayer);
+            _polygons.splice(idx, 1);
+            renderPolygonList();
           });
         });
       }
@@ -2585,6 +2680,7 @@
           entry.leafletLayer.setStyle({ color: '#16a34a', fillColor: '#16a34a' });
         }
         entry.leafletLayer.setPopupContent(buildPopupContent(entry) + '<br><span style="color:green;font-weight:bold;">✓ Übernommen als ' + id + '</span>');
+        renderPolygonList();
       }
 
       $('openMapModal').addEventListener('click', openMapModal);
@@ -2593,6 +2689,7 @@
         if (e.target === this) closeMapModal();
       });
       $('mapSearchBtn').addEventListener('click', () => searchAddress($('mapSearch').value));
+      $('mapAutofillBtn').addEventListener('click', autofillBuildings);
 
       function openCalcModal() {
         $('calcModW').value = state.moduleConfig.widthCm || 178;
