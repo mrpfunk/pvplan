@@ -1233,14 +1233,12 @@
           try {
             const bbox = svgClone.getBBox();
             if(bbox && isFinite(bbox.x) && isFinite(bbox.y) && isFinite(bbox.width) && isFinite(bbox.height) && bbox.width>0 && bbox.height>0){
-              const pad = 2;
+              const pad = 6;
               const vbX = bbox.x - pad;
               const vbY = bbox.y - pad;
               const vbW = bbox.width + 2*pad;
               const vbH = bbox.height + 2*pad;
               svgClone.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
-              svgClone.removeAttribute('width');
-              svgClone.removeAttribute('height');
             }
           } finally {
             // im DOM belassen, bis svg2pdf gerendert hat (damit Styles/BBox stabil bleiben)
@@ -1250,18 +1248,27 @@
           let svgW = (vb && vb.width) ? vb.width : parseFloat(svgClone.getAttribute('width')) || 1000;
           let svgH = (vb && vb.height) ? vb.height : parseFloat(svgClone.getAttribute('height')) || 700;
 
-          // Fit-to-page Skalierung (Seite komplett ausnutzen, Seitenverhältnis beibehalten)
-          const scale = Math.min(pageWidth / svgW, pageHeight / svgH);
+          // Fit-to-page Skalierung mit Seitenrand, damit nichts am Rand abgeschnitten wird
+          const margin = 8; // mm
+          const usableWidth = pageWidth - 2 * margin;
+          const usableHeight = pageHeight - 2 * margin;
+          const scale = Math.min(usableWidth / svgW, usableHeight / svgH);
           const drawW = svgW * scale;
           const drawH = svgH * scale;
           const xOffset = (pageWidth - drawW) / 2;
           const yOffset = (pageHeight - drawH) / 2;
 
+          // svg2pdf.js kennt keine "scale"/"xOffset"/"yOffset"-Optionen (werden
+          // stillschweigend ignoriert). Die Zielgröße muss stattdessen über die
+          // width/height-Attribute des SVG in mm vorgegeben werden, sonst skaliert
+          // svg2pdf intern nur auf die Seitenbreite und schneidet unten ab.
+          svgClone.setAttribute('width', drawW);
+          svgClone.setAttribute('height', drawH);
+
           // Nur SVG in PDF rendern
           await window.svg2pdf.svg2pdf(svgClone, pdf, {
-            xOffset,
-            yOffset,
-            scale
+            x: xOffset,
+            y: yOffset
           });
           // temporären Knoten entfernen
           if(tempContainer && tempContainer.parentNode){
